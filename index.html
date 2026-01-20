@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Denttia - Sistema de Cierre de Caja para Clínicas Dentales">
+    <title>Denttia - Cierre de Caja</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <div class="login-page">
+        <div class="card" style="max-width: 500px; text-align: center;">
+            <img src="assets/logo.png" alt="Denttia" style="height: 60px; margin-bottom: var(--space-8);">
+
+            <h1 style="margin-bottom: var(--space-4);">Módulo de Cierre de Caja</h1>
+            <p class="text-muted" style="margin-bottom: var(--space-8);">
+                Sistema de corte ciego para clínicas dentales
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                <a href="pages/login.html" class="btn btn-primary btn-lg btn-block">
+                    Iniciar Sesión
+                </a>
+
+                <div style="display: flex; gap: var(--space-4); margin-top: var(--space-4);">
+                    <a href="pages/receptionist.html" class="btn btn-secondary" style="flex: 1;">
+                        Vista Recepción
+                    </a>
+                    <a href="pages/admin.html" class="btn btn-secondary" style="flex: 1;">
+                        Vista Admin
+                    </a>
+                </div>
+            </div>
+
+            <p class="text-muted" style="margin-top: var(--space-8); font-size: var(--font-size-sm);">
+                Versión 1.0 MVP
+            </p>
+        </div>
+    </div>
+
+    <script src="js/supabase.js"></script>
+    <script>
+        // Redirect if already logged in
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await window.auth.getSession();
+            if (session) {
+                const isAdmin = await window.auth.isAdmin();
+                window.location.href = isAdmin ? 'pages/admin.html' : 'pages/receptionist.html';
+            }
+        });
+    </script>
+</body>
+
+</html>

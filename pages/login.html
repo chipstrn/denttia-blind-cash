@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Denttia - Sistema de Cierre de Caja para Clínicas Dentales">
+  <title>Iniciar Sesión | Denttia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/index.css">
+</head>
+
+<body>
+  <div class="login-page">
+    <div class="card login-card">
+      <div class="login-logo">
+        <img src="../assets/logo.png" alt="Denttia Logo">
+      </div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="username">Usuario</label>
+          <input type="text" id="username" class="form-input" placeholder="Ej: cesarhuro" required
+            autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña</label>
+          <input type="password" id="password" class="form-input" placeholder="••••••••" required
+            autocomplete="current-password">
+        </div>
+
+        <button type="submit" id="login-btn" class="btn btn-primary btn-lg btn-block mt-6">
+          Iniciar Sesión
+        </button>
+
+        <p id="error-message" class="text-danger text-center mt-4 hidden"></p>
+      </form>
+
+      <div class="mt-6 text-center">
+        <p class="text-muted" style="font-size: var(--font-size-sm);">
+          Contacta al administrador para obtener credenciales.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Check if already logged in
+      const session = await window.auth.getSession();
+      if (session) {
+        const isAdmin = await window.auth.isAdmin();
+        window.location.href = isAdmin ? '/pages/admin.html' : '/pages/receptionist.html';
+        return;
+      }
+
+      // DOM Elements
+      const loginForm = document.getElementById('login-form');
+      const errorMessage = document.getElementById('error-message');
+      const loginBtn = document.getElementById('login-btn');
+
+      // Login handler
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorMessage.classList.add('hidden');
+
+        let username = document.getElementById('username').value.trim().toLowerCase();
+        // Convert username to email format for Supabase Auth
+        const email = username.includes('@') ? username : username + '@denttia.local';
+        const password = document.getElementById('password').value;
+
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = `<div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>`;
+
+        try {
+          await window.auth.signIn(email, password);
+          const isAdmin = await window.auth.isAdmin();
+          window.location.href = isAdmin ? '/pages/admin.html' : '/pages/receptionist.html';
+        } catch (error) {
+          console.error('Login error:', error);
+          errorMessage.textContent = 'Usuario o contraseña incorrectos';
+          errorMessage.classList.remove('hidden');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Iniciar Sesión';
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

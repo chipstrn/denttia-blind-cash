@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Denttia - Panel de Administración - Auditoría de Cierres de Caja">
+    <title>Panel de Auditoría | Denttia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/index.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-content">
+            <img src="../assets/logo.png" alt="Denttia" class="logo">
+            <div class="user-info">
+                <button id="change-password-btn" class="btn btn-ghost"
+                    style="font-size: var(--font-size-sm); margin-right: var(--space-2);">
+                    Cambiar Contraseña
+                </button>
+                <button id="logout-btn" class="btn btn-ghost" style="font-size: var(--font-size-sm);">
+                    Cerrar Sesión
+                </button>
+                <div class="user-avatar" id="user-initials">--</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="page">
+        <div class="container">
+
+            <div class="page-header">
+                <h1 class="page-title">Panel de Auditoría</h1>
+                <p class="page-subtitle">Historial de cierres de caja y conciliación</p>
+            </div>
+
+            <div class="card">
+                <!-- Date Filter -->
+                <div class="date-filter"
+                    style="display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-6); flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                        <label class="form-label" for="date-from">Desde</label>
+                        <input type="date" id="date-from" class="form-input">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                        <label class="form-label" for="date-to">Hasta</label>
+                        <input type="date" id="date-to" class="form-input">
+                    </div>
+                    <button id="filter-btn" class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Filtrar
+                    </button>
+                    <button id="clear-filter-btn" class="btn btn-secondary">
+                        Limpiar
+                    </button>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state hidden">
+                    <div class="empty-state-icon">📋</div>
+                    <h3>Sin registros</h3>
+                    <p class="text-muted">No hay cierres de caja registrados aún.</p>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th class="text-right">Contado</th>
+                                <th class="text-right">Gastos</th>
+                                <th class="text-right">Esperado</th>
+                                <th>Diferencia</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuts-table-body">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="modal-backdrop" class="modal-backdrop">
+        <div id="detail-modal" class="modal">
+            <div class="modal-header">
+                <h3>Detalle del Corte</h3>
+                <button id="close-modal" class="btn btn-ghost" aria-label="Cerrar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Record Info -->
+                <div class="section">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+                        <div>
+                            <p class="form-label">Fecha</p>
+                            <p id="modal-date" style="font-weight: 500;">--</p>
+                        </div>
+                        <div>
+                            <p class="form-label">Usuario</p>
+                            <p id="modal-user" style="font-weight: 500;">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Counted Amount -->
+                <div class="section">
+                    <p class="form-label">Total Contado</p>
+                    <p id="modal-total-counted" style="font-size: var(--font-size-2xl); font-weight: 600;">--</p>
+                </div>
+
+                <!-- Adjustments -->
+                <div class="section">
+                    <p class="form-label">Gastos Reportados</p>
+                    <div id="modal-adjustments-list" class="adjustment-list mb-4">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; padding-top: var(--space-3); border-top: 1px solid var(--border-light);">
+                        <span class="form-label" style="margin: 0;">Total Gastos:</span>
+                        <span id="modal-adjustments-total" style="font-weight: 600;">$0.00</span>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-light); margin: var(--space-6) 0;">
+
+                <!-- Admin Input Section -->
+                <div class="section">
+                    <h4 style="margin-bottom: var(--space-4);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="vertical-align: middle; margin-right: var(--space-2);">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Revisión del Administrador
+                    </h4>
+
+                    <div class="form-group">
+                        <label class="form-label" for="expected-amount">Monto Esperado (Sistema)</label>
+                        <input type="number" id="expected-amount" class="form-input"
+                            placeholder="Ingresa el monto esperado" step="0.01" min="0" inputmode="decimal">
+                    </div>
+
+                    <div id="difference-display" class="mb-4">
+                        <span class="text-muted">Ingresa el monto esperado</span>
+                    </div>
+
+                    <!-- Password Change Modal -->
+                    <div id="password-modal-backdrop" class="modal-backdrop">
+                        <div id="password-modal" class="modal">
+                            <div class="modal-header">
+                                <h3>Cambiar Contraseña</h3>
+                                <button id="close-password-modal" class="btn btn-ghost" aria-label="Cerrar">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="change-password-form">
+                                    <div class="form-group">
+                                        <label class="form-label" for="new-password">Nueva Contraseña</label>
+                                        <input type="password" id="new-password" class="form-input"
+                                            placeholder="Mínimo 6 caracteres" minlength="6" required
+                                            autocomplete="new-password">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="confirm-password">Confirmar Contraseña</label>
+                                        <input type="password" id="confirm-password" class="form-input"
+                                            placeholder="Repite la contraseña" minlength="6" required
+                                            autocomplete="new-password">
+                                    </div>
+                                    <p id="password-error" class="text-danger hidden mb-4 text-center"></p>
+                                    <div class="modal-footer" style="padding: 0; border: none;">
+                                        <button type="submit" id="save-password-btn" class="btn btn-primary btn-block">
+                                            Actualizar Contraseña
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="status-select">Estado</label>
+                        <select id="status-select" class="form-input">
+                            <option value="pending">Pendiente</option>
+                            <option value="reviewed">Revisado</option>
+                            <option value="disputed">Disputado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="reviewer-notes">Notas</label>
+                        <textarea id="reviewer-notes" class="form-input" rows="3" placeholder="Notas opcionales..."
+                            style="resize: vertical;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-review-btn" class="btn btn-primary">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.auth.signOut();
+        });
+    </script>
+</body>
+
+</html>

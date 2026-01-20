@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Denttia - Cerrar Caja - Ingreso de efectivo y vouchers">
+    <title>Cerrar Caja | Denttia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/index.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container header-content">
+            <img src="../assets/logo.png" alt="Denttia" class="logo">
+            <div class="user-info">
+                <button id="logout-btn" class="btn btn-ghost" style="font-size: var(--font-size-sm);">
+                    Cerrar Sesión
+                </button>
+                <div class="user-avatar" id="user-initials">--</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="page">
+        <div class="container" style="max-width: 600px;">
+
+            <!-- Form View -->
+            <div id="form-view">
+                <div class="page-header text-center">
+                    <h1 class="page-title">Cerrar Caja</h1>
+                    <p class="page-subtitle">Ingresa el total de efectivo y vouchers</p>
+                </div>
+
+                <form id="cash-closing-form" class="card">
+
+                    <!-- Total Counted Input -->
+                    <div class="section">
+                        <label class="form-label" for="total-counted">
+                            Total en Caja (Efectivo + Vouchers)
+                        </label>
+                        <div class="money-input-wrapper">
+                            <input type="number" id="total-counted" class="money-input" placeholder="0.00" step="0.01"
+                                min="0" required inputmode="decimal" aria-label="Total en caja">
+                        </div>
+                    </div>
+
+                    <!-- Adjustments Section -->
+                    <div class="section">
+                        <h3 class="section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            Gastos / Justificaciones
+                        </h3>
+
+                        <!-- Add Adjustment Form -->
+                        <div class="add-adjustment-row mb-4">
+                            <div class="form-group concept-group">
+                                <label class="form-label" for="adjustment-concept">Concepto</label>
+                                <input type="text" id="adjustment-concept" class="form-input"
+                                    placeholder="Ej: Garrafón de agua" maxlength="100">
+                            </div>
+                            <div class="form-group amount-group">
+                                <label class="form-label" for="adjustment-amount">Monto</label>
+                                <input type="number" id="adjustment-amount" class="form-input" placeholder="0.00"
+                                    step="0.01" min="0" inputmode="decimal">
+                            </div>
+                            <button type="button" id="add-adjustment-btn" class="btn btn-secondary">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Agregar
+                            </button>
+                        </div>
+
+                        <!-- Adjustments List -->
+                        <div id="adjustments-list" class="adjustment-list">
+                            <p class="text-muted text-center" style="padding: var(--space-4);">
+                                Sin gastos registrados
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submit-btn" class="btn btn-primary btn-lg btn-block mt-6">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Terminar Turno
+                    </button>
+
+                </form>
+            </div>
+
+            <!-- Success View -->
+            <div id="success-view" class="hidden">
+                <div class="card success-message">
+                    <div class="success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <h2 style="margin-bottom: var(--space-2);">¡Guardado!</h2>
+                    <p class="text-muted" style="margin-bottom: var(--space-6);">
+                        Tu cierre de caja ha sido registrado correctamente.
+                    </p>
+                    <button id="new-closing-btn" class="btn btn-secondary">
+                        Nuevo Cierre
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="../js/supabase.js"></script>
+    <script src="../js/receptionist.js"></script>
+    <script>
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.auth.signOut();
+        });
+    </script>
+</body>
+
+</html>
