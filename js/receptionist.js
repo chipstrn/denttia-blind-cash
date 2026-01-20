@@ -51,6 +51,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         userInitials.textContent = email.substring(0, 2).toUpperCase();
     }
 
+    // Display current date (Automatic & Dynamic)
+    const dateDisplay = document.getElementById('current-date-display');
+
+    function updateDate() {
+        if (!dateDisplay) return;
+        const today = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        let formattedDate = today.toLocaleDateString('es-ES', options);
+        // Capitalize first letter
+        formattedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+        dateDisplay.textContent = formattedDate;
+    }
+
+    if (dateDisplay) {
+        updateDate(); // Initial run
+        // Check for date change every minute
+        setInterval(updateDate, 60000);
+    }
+
     // Format currency
     function formatCurrency(amount) {
         return new Intl.NumberFormat('es-MX', {

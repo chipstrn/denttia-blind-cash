@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusSelect = document.getElementById('status-select');
     const notesInput = document.getElementById('reviewer-notes');
     const saveReviewBtn = document.getElementById('save-review-btn');
+    const deleteCutBtn = document.getElementById('delete-cut-btn');
 
     // Password Modal Elements
     const changePasswordBtn = document.getElementById('change-password-btn');
@@ -570,7 +571,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Expenses table with user column
             if (expenses.length > 0) {
                 weekExpensesBody.innerHTML = expenses.map(exp => `
-                    <tr>
+                    <tr data-user="${exp.user_name || 'unknown'}">
                         <td data-label="Fecha">${formatDateShort(exp.created_at)}</td>
                         <td data-label="Usuario" style="font-size: var(--font-size-sm);">${exp.user_name || 'Usuario'}</td>
                         <td data-label="Categoría">${categoryLabels[exp.category] || exp.category}</td>
@@ -585,6 +586,48 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <td colspan="6" class="text-center text-muted">Sin gastos esta semana</td>
                     </tr>
                 `;
+            }
+
+            // ============ POPULATE USER FILTER ============
+            const userFilter = document.getElementById('expense-user-filter');
+            if (userFilter) {
+                // Get unique users
+                const uniqueUsers = [...new Set(expenses.map(exp => exp.user_name).filter(Boolean))].sort();
+
+                // Save current selection if exists
+                const currentVal = userFilter.value;
+
+                // Build options: Default "All" + users
+                userFilter.innerHTML = '<option value="all">Todos los usuarios</option>' +
+                    uniqueUsers.map(user => `<option value="${user}">${user}</option>`).join('');
+
+                // Restore selection if still valid, otherwise default to "all"
+                if (uniqueUsers.includes(currentVal)) {
+                    userFilter.value = currentVal;
+                } else {
+                    userFilter.value = 'all';
+                }
+
+                // Remove existing listener to avoid duplicates if re-rendering (simple way)
+                const newFilter = userFilter.cloneNode(true);
+                userFilter.parentNode.replaceChild(newFilter, userFilter);
+
+                // Add Change Listener
+                newFilter.addEventListener('change', (e) => {
+                    const selectedUser = e.target.value;
+                    const rows = weekExpensesBody.querySelectorAll('tr[data-user]');
+
+                    rows.forEach(row => {
+                        if (selectedUser === 'all' || row.getAttribute('data-user') === selectedUser) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+
+                // Add click stop propagation again to be safe (after clone)
+                newFilter.addEventListener('click', (e) => e.stopPropagation());
             }
 
         } catch (error) {
@@ -626,6 +669,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     expectedInput.addEventListener('input', updateDifferenceDisplay);
     saveReviewBtn.addEventListener('click', saveReview);
+
+    if (deleteCutBtn) {
+        deleteCutBtn.addEventListener('click', async () => {
+            if (!selectedCut) return;
+
+            if (!confirm('¿Estás seguro de que quieres ELIMINAR este corte Permanentemente? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            deleteCutBtn.disabled = true;
+            deleteCutBtn.textContent = 'Eliminando...';
+
+            try {
+                // Delete from Supabase
+                const { error } = await window.supabaseClient
+                    .from('blind_cuts')
+                    .delete()
+                    .eq('id', selectedCut.id);
+
+                if (error) throw error;
+
+                alert('Corte eliminado correctamente.');
+                closeModal();
+
+                // Refresh list
+                loadCuts(dateFromInput.value || null, dateToInput.value || null);
+                loadWeeklyAudit(); // Refresh audit if needed
+
+            } catch (error) {
+                console.error('Error deleting cut:', error);
+                alert('Error al eliminar el corte.');
+            } finally {
+                deleteCutBtn.disabled = false;
+                deleteCutBtn.textContent = 'Eliminar Corte';
+            }
+        });
+    }
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && modalBackdrop.classList.contains('active')) {

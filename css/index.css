@@ -234,6 +234,31 @@ select.form-input {
   cursor: pointer;
 }
 
+.header-select {
+  padding: 4px 2.5rem 4px 12px !important;
+  /* Increased right padding for arrow */
+  font-size: 0.85em !important;
+  width: auto !important;
+  max-width: 250px;
+  /* Slightly wider max-width */
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  height: 32px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-select:hover {
+  border-color: var(--accent-primary);
+}
+
+.header-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
 .form-input::placeholder {
   color: var(--text-muted);
 }
@@ -332,6 +357,17 @@ select.form-input {
 
 .btn-ghost:hover {
   background: rgba(37, 99, 235, 0.1);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  transition: all var(--transition-fast);
+}
+
+.btn-danger-outline:hover {
+  background: var(--danger-light);
 }
 
 .btn-danger {
@@ -1268,7 +1304,8 @@ select.form-input {
 }
 
 .collapsible-section.open .collapsible-content {
-  max-height: 2000px;
+  max-height: 5000px;
+  /* Increased to prevent clipping on long lists */
   padding: var(--space-4);
 }
 
@@ -1320,9 +1357,15 @@ select.form-input {
 }
 
 /* ============ MOBILE COLLAPSIBLE ============ */
+/* ============ MOBILE OPTIMIZATION ============ */
 @media (max-width: 768px) {
+
+  /* Collapsible */
   .collapsible-header {
     padding: var(--space-3);
+    flex-wrap: wrap;
+    /* Allow title and select to wrap on small screens */
+    gap: var(--space-2);
   }
 
   .collapsible-content {
@@ -1331,5 +1374,131 @@ select.form-input {
 
   .collapsible-section.open .collapsible-content {
     padding: var(--space-3) var(--space-2);
+  }
+
+  /* Layout & Container */
+  .container {
+    padding: var(--space-3);
+  }
+
+  .page-header {
+    margin-bottom: var(--space-4);
+  }
+
+  .page-title {
+    font-size: var(--font-size-xl);
+  }
+
+  /* Summary Cards: 2 Columns for better density */
+  .audit-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .summary-card {
+    padding: var(--space-3);
+  }
+
+  .summary-card-label {
+    font-size: var(--font-size-xs);
+  }
+
+  .summary-card-value {
+    font-size: var(--font-size-xl);
+  }
+
+  /* Forms: Stack inputs vertically */
+  .expense-form-row,
+  .date-filter {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: var(--space-3) !important;
+  }
+
+  .form-group {
+    min-width: 100% !important;
+    margin-right: 0 !important;
+    margin-bottom: var(--space-3);
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tables: Horizontal Scroll */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+    box-shadow: none;
+    /* Simplify on mobile */
+  }
+
+  .table th,
+  .table td {
+    white-space: nowrap;
+    padding: var(--space-3);
+    font-size: var(--font-size-sm);
+  }
+
+  /* Category Grid: 2 Cols */
+  .category-breakdown {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+
+  .category-item {
+    padding: var(--space-2);
+  }
+
+  .category-total {
+    font-size: var(--font-size-md);
+  }
+
+  /* Modal */
+  .modal {
+    width: 95%;
+    padding: 0;
+    /* Let children handle padding or reduce it */
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-body {
+    padding: var(--space-4);
+  }
+
+  .modal-header {
+    padding: var(--space-4);
+  }
+
+  .modal-footer {
+    padding: var(--space-4);
+    flex-direction: column;
+    /* Stack buttons on mobile */
+    gap: var(--space-3);
+  }
+
+  .modal-header h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  /* Tabs */
+  .tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+    /* For scrollbar */
+  }
+}
+
+@media (max-width: 480px) {
+
+  /* Even smaller screens */
+  .audit-summary {
+    grid-template-columns: 1fr;
+    /* Stack summary on very small screens */
   }
 }
