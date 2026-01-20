@@ -170,43 +170,7 @@
                         <span class="text-muted">Ingresa el monto esperado</span>
                     </div>
 
-                    <!-- Password Change Modal -->
-                    <div id="password-modal-backdrop" class="modal-backdrop">
-                        <div id="password-modal" class="modal">
-                            <div class="modal-header">
-                                <h3>Cambiar Contraseña</h3>
-                                <button id="close-password-modal" class="btn btn-ghost" aria-label="Cerrar">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="modal-body">
-                                <form id="change-password-form">
-                                    <div class="form-group">
-                                        <label class="form-label" for="new-password">Nueva Contraseña</label>
-                                        <input type="password" id="new-password" class="form-input"
-                                            placeholder="Mínimo 6 caracteres" minlength="6" required
-                                            autocomplete="new-password">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label" for="confirm-password">Confirmar Contraseña</label>
-                                        <input type="password" id="confirm-password" class="form-input"
-                                            placeholder="Repite la contraseña" minlength="6" required
-                                            autocomplete="new-password">
-                                    </div>
-                                    <p id="password-error" class="text-danger hidden mb-4 text-center"></p>
-                                    <div class="modal-footer" style="padding: 0; border: none;">
-                                        <button type="submit" id="save-password-btn" class="btn btn-primary btn-block">
-                                            Actualizar Contraseña
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
+
 
                     <div class="form-group">
                         <label class="form-label" for="status-select">Estado</label>
@@ -228,6 +192,41 @@
                 <button id="save-review-btn" class="btn btn-primary">
                     Guardar Cambios
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Change Modal -->
+    <div id="password-modal-backdrop" class="modal-backdrop">
+        <div id="password-modal" class="modal">
+            <div class="modal-header">
+                <h3>Cambiar Contraseña</h3>
+                <button id="close-password-modal" class="btn btn-ghost" aria-label="Cerrar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="change-password-form">
+                    <div class="form-group">
+                        <label class="form-label" for="new-password">Nueva Contraseña</label>
+                        <input type="password" id="new-password" class="form-input" placeholder="Mínimo 6 caracteres"
+                            minlength="6" required autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="confirm-password">Confirmar Contraseña</label>
+                        <input type="password" id="confirm-password" class="form-input"
+                            placeholder="Repite la contraseña" minlength="6" required autocomplete="new-password">
+                    </div>
+                    <p id="password-error" class="text-danger hidden mb-4 text-center"></p>
+                    <div class="modal-footer" style="padding: 0; border: none;">
+                        <button type="submit" id="save-password-btn" class="btn btn-primary btn-block">
+                            Actualizar Contraseña
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
