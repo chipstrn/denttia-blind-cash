@@ -44,7 +44,7 @@ const auth = {
   async signOut() {
     const { error } = await supabaseClient.auth.signOut();
     if (error) throw error;
-    window.location.href = '/pages/login.html';
+    window.location.href = '/';
   },
 
   // Check if user is admin
@@ -58,7 +58,7 @@ const auth = {
   async requireAuth() {
     const session = await this.getSession();
     if (!session) {
-      window.location.href = '/pages/login.html';
+      window.location.href = '/';
       return null;
     }
     return session;
