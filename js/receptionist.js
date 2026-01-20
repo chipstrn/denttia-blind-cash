@@ -6,27 +6,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // DOM Elements
     const form = document.getElementById('daily-record-form');
-    const totalIncomeInput = document.getElementById('total-income');
-    const expensesList = document.getElementById('expenses-list');
-    const expensesSummary = document.getElementById('expenses-summary');
-    const totalExpensesDisplay = document.getElementById('total-expenses');
-
-    // Expense form elements
-    const categorySelect = document.getElementById('expense-category');
-    const descriptionInput = document.getElementById('expense-description');
-    const amountInput = document.getElementById('expense-amount');
-    const addExpenseBtn = document.getElementById('add-expense-btn');
-
     const submitBtn = document.getElementById('submit-btn');
     const formView = document.getElementById('form-view');
     const successView = document.getElementById('success-view');
-    const userInitials = document.getElementById('user-initials');
     const newRecordBtn = document.getElementById('new-record-btn');
+    const dateDisplay = document.getElementById('current-date-display');
+
+    // New Elements for Split Income
+    const cashInput = document.getElementById('cash-income');
+    const voucherInput = document.getElementById('voucher-income');
+    const totalComputedDisplay = document.getElementById('total-computed-display');
+    const cutDateInput = document.getElementById('cut-date');
+
+    const expensesList = document.getElementById('expenses-list');
+    const expensesSummary = document.getElementById('expenses-summary');
+    const totalExpensesDisplay = document.getElementById('total-expenses');
+    const expenseCategorySelect = document.getElementById('expense-category');
+    const expenseDescriptionInput = document.getElementById('expense-description');
+    const expenseAmountInput = document.getElementById('expense-amount');
+    const addExpenseBtn = document.getElementById('add-expense-btn');
+
+    // User initials
+    const userInitialsEl = document.getElementById('user-initials');
+    const user = await window.auth.getUser();
+    if (user && userInitialsEl) {
+        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'U';
+        userInitialsEl.textContent = name.substring(0, 2).toUpperCase();
+    }
 
     // State
     let expenses = [];
 
-    // Category labels for display
+    // Category labels
     const categoryLabels = {
         'renta': '🏠 Renta',
         'material': '🦷 Material Dental',
@@ -38,22 +49,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         'otros': '📋 Otros'
     };
 
-    const methodLabels = {
-        'efectivo': '💵 Efectivo',
-        'transferencia': '🏦 Transferencia',
-        'tarjeta': '💳 Tarjeta'
-    };
-
-    // Initialize user info
-    const user = await window.auth.getUser();
-    if (user && userInitials) {
-        const email = user.email || '';
-        userInitials.textContent = email.substring(0, 2).toUpperCase();
+    // Format currency
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 2
+        }).format(amount);
     }
 
-    // Display current date (Automatic & Dynamic)
-    const dateDisplay = document.getElementById('current-date-display');
-
+    // Update date display
     function updateDate() {
         if (!dateDisplay) return;
         const today = new Date();
@@ -65,29 +70,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (dateDisplay) {
-        updateDate(); // Initial run
-        // Check for date change every minute
+        updateDate();
         setInterval(updateDate, 60000);
     }
 
-    // Format currency
-    function formatCurrency(amount) {
-        return new Intl.NumberFormat('es-MX', {
-            style: 'currency',
-            currency: 'MXN',
-            minimumFractionDigits: 2
-        }).format(amount);
+    // Set Default Date
+    if (cutDateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        cutDateInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
-    // Calculate total expenses
-    function calculateTotalExpenses() {
-        return expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+    // Auto-Calculate Total
+    function updateTotalDisplay() {
+        const cash = parseFloat(cashInput?.value) || 0;
+        const voucher = parseFloat(voucherInput?.value) || 0;
+        const total = cash + voucher;
+        if (totalComputedDisplay) {
+            totalComputedDisplay.textContent = formatCurrency(total);
+        }
     }
+
+    if (cashInput) cashInput.addEventListener('input', updateTotalDisplay);
+    if (voucherInput) voucherInput.addEventListener('input', updateTotalDisplay);
 
     // Render expenses list
     function renderExpenses() {
-        expensesList.innerHTML = '';
-
         if (expenses.length === 0) {
             expensesList.innerHTML = `
                 <p class="text-muted text-center" style="padding: var(--space-4);">
@@ -98,32 +108,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        expenses.forEach((exp, index) => {
-            const item = document.createElement('div');
-            item.className = 'expense-item';
-            item.innerHTML = `
-                <div class="expense-item-header">
-                    <span class="expense-category">${categoryLabels[exp.category] || exp.category}</span>
-                    <span class="expense-method">${methodLabels[exp.payment_method] || exp.payment_method}</span>
+        expensesList.innerHTML = expenses.map((exp, index) => `
+            <div class="expense-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: var(--space-2);">
+                <div style="flex: 1;">
+                    <div style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: 2px;">
+                        ${categoryLabels[exp.category] || exp.category}
+                    </div>
+                    <div style="color: var(--text-primary);">${escapeHtml(exp.description)}</div>
                 </div>
-                <div class="expense-item-body">
-                    <span class="expense-description">${escapeHtml(exp.description)}</span>
-                    <span class="expense-amount">${formatCurrency(exp.amount)}</span>
-                    <button type="button" class="remove-btn" data-index="${index}" aria-label="Eliminar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div style="display: flex; align-items: center; gap: var(--space-3);">
+                    <span style="font-weight: 600; color: var(--danger);">${formatCurrency(exp.amount)}</span>
+                    <button type="button" class="btn btn-ghost" onclick="removeExpense(${index})" style="padding: 4px; color: var(--text-muted);" aria-label="Eliminar gasto">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                     </button>
                 </div>
-            `;
-            expensesList.appendChild(item);
-        });
+            </div>
+        `).join('');
 
-        // Update summary
+        // Calculate and show total
+        const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+        totalExpensesDisplay.textContent = formatCurrency(total);
         expensesSummary.classList.remove('hidden');
-        totalExpensesDisplay.textContent = formatCurrency(calculateTotalExpenses());
     }
+
+    // Remove expense helper (global)
+    window.removeExpense = (index) => {
+        expenses.splice(index, 1);
+        renderExpenses();
+    };
 
     // Escape HTML to prevent XSS
     function escapeHtml(text) {
@@ -133,69 +148,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Add expense handler
-    addExpenseBtn.addEventListener('click', () => {
-        const category = categorySelect.value;
-        const description = descriptionInput.value.trim();
-        const amount = parseFloat(amountInput.value);
+    if (addExpenseBtn) {
+        addExpenseBtn.addEventListener('click', () => {
+            const category = expenseCategorySelect.value;
+            const description = expenseDescriptionInput.value.trim();
+            const amount = parseFloat(expenseAmountInput.value);
 
-        if (!category) {
-            categorySelect.focus();
-            return;
-        }
+            // Validation
+            if (!category) {
+                alert('Por favor selecciona una categoría.');
+                expenseCategorySelect.focus();
+                return;
+            }
 
-        if (!description) {
-            descriptionInput.focus();
-            return;
-        }
+            if (!description) {
+                alert('Por favor ingresa una descripción.');
+                expenseDescriptionInput.focus();
+                return;
+            }
 
-        if (isNaN(amount) || amount <= 0) {
-            amountInput.focus();
-            return;
-        }
+            if (!amount || amount <= 0) {
+                alert('Por favor ingresa un monto válido.');
+                expenseAmountInput.focus();
+                return;
+            }
 
-        expenses.push({
-            category: category,
-            payment_method: 'efectivo', // Receptionist can only use cash
-            description: description,
-            amount: amount
-        });
+            // Add to list (all receptionist expenses are 'efectivo')
+            expenses.push({
+                category,
+                description,
+                amount,
+                payment_method: 'efectivo'
+            });
 
-        // Clear inputs
-        categorySelect.value = '';
-        descriptionInput.value = '';
-        amountInput.value = '';
-        categorySelect.focus();
+            // Clear inputs
+            expenseCategorySelect.value = '';
+            expenseDescriptionInput.value = '';
+            expenseAmountInput.value = '';
 
-        renderExpenses();
-    });
-
-    // Remove expense handler (event delegation)
-    expensesList.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.remove-btn');
-        if (removeBtn) {
-            const index = parseInt(removeBtn.dataset.index, 10);
-            expenses.splice(index, 1);
+            // Re-render
             renderExpenses();
-        }
-    });
-
-    // Validate income input (prevent negative numbers)
-    totalIncomeInput.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
-        if (value < 0) {
-            e.target.value = 0;
-        }
-    });
+        });
+    }
 
     // Form submission
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const totalIncome = parseFloat(totalIncomeInput.value);
+        const cash = parseFloat(cashInput?.value) || 0;
+        const voucher = parseFloat(voucherInput?.value) || 0;
+        const totalIncome = cash + voucher;
+        const selectedDate = cutDateInput?.value;
 
         // Validation
-        if (isNaN(totalIncome) || totalIncome < 0) {
-            totalIncomeInput.focus();
+        if (!selectedDate) {
+            alert('Por favor selecciona una fecha.');
+            cutDateInput?.focus();
+            return;
+        }
+
+        if (totalIncome < 0) {
+            alert('El total no puede ser negativo.');
             return;
         }
 
@@ -207,31 +220,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
 
         try {
-            const user = await window.auth.getUser();
+            const currentUser = await window.auth.getUser();
+            const userName = currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuario';
+
+            // Use selected date for timestamp (noon to avoid timezone issues)
+            const timestamp = `${selectedDate}T12:00:00`;
 
             // 1. Insert blind cut record (income)
-            const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario';
             const { error: incomeError } = await window.supabaseClient
                 .from('blind_cuts')
                 .insert({
-                    user_id: user.id,
+                    user_id: currentUser.id,
                     user_name: userName,
                     total_counted: totalIncome,
+                    cash_counted: cash,
+                    voucher_counted: voucher,
+                    valid_date: selectedDate,
+                    created_at: timestamp,
                     adjustments: [],
                     status: 'pending'
                 });
 
             if (incomeError) throw incomeError;
 
-            // 2. Insert all expenses
+            // 2. Insert all expenses (associated with this cut date)
             if (expenses.length > 0) {
                 const expenseRecords = expenses.map(exp => ({
-                    user_id: user.id,
+                    user_id: currentUser.id,
                     user_name: userName,
                     category: exp.category,
                     payment_method: exp.payment_method,
                     description: exp.description,
-                    amount: exp.amount
+                    amount: exp.amount,
+                    created_at: timestamp
                 }));
 
                 const { error: expenseError } = await window.supabaseClient
@@ -248,6 +269,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Reset form state
             expenses = [];
             form.reset();
+
+            // Reset Date to Today
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            if (cutDateInput) cutDateInput.value = `${yyyy}-${mm}-${dd}`;
+
+            updateTotalDisplay();
             renderExpenses();
 
         } catch (error) {

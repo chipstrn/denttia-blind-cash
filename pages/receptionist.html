@@ -46,17 +46,51 @@
                         <h3 class="section-title">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Fecha del Corte
+                        </h3>
+                        <!-- Date Selection (New) -->
+                        <div class="form-group mb-4">
+                            <label class="form-label" for="cut-date">Fecha de Registro</label>
+                            <input type="date" id="cut-date" class="form-input" style="font-size: 1.1rem; padding: 12px;" required>
+                            <p class="text-muted" style="font-size: var(--font-size-xs); margin-top: 4px;">Modifica si es un corte pasado.</p>
+                        </div>
+
+                        <hr style="border: none; border-top: 1px solid var(--border-light); margin: var(--space-4) 0;">
+
+                        <h3 class="section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <line x1="12" y1="1" x2="12" y2="23"></line>
                                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
                             Ingresos del Día
                         </h3>
-                        <label class="form-label" for="total-income">
-                            Total en Caja (Efectivo + Vouchers)
-                        </label>
-                        <div class="money-input-wrapper">
-                            <input type="number" id="total-income" class="money-input" placeholder="0.00" step="0.01"
-                                min="0" required inputmode="decimal" aria-label="Total de ingresos">
+                        
+                        <!-- Split Income Inputs (New) -->
+                        <div class="expense-form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label" for="cash-income">Efectivo en Caja</label>
+                                <div class="money-input-wrapper">
+                                    <input type="number" id="cash-income" class="money-input" placeholder="0.00" step="0.01" min="0" required inputmode="decimal">
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label" for="voucher-income">Vouchers / Terminal</label>
+                                <div class="money-input-wrapper">
+                                    <input type="number" id="voucher-income" class="money-input" placeholder="0.00" step="0.01" min="0" required inputmode="decimal">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total Computed Display -->
+                        <div style="background: var(--bg-secondary); padding: var(--space-3); border-radius: var(--radius-md); text-align: right; margin-top: var(--space-2);">
+                            <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">Total en Caja:</span>
+                            <div id="total-computed-display" style="font-size: var(--font-size-xl); font-weight: 700; color: var(--primary);">
+                                $ 0.00
+                            </div>
                         </div>
                     </div>
 

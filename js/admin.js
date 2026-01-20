@@ -319,6 +319,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalDate.textContent = formatDate(cut.created_at);
         modalUser.textContent = cut.user_name || 'Usuario';
         modalTotalCounted.textContent = formatCurrency(cut.total_counted);
+
+        // Update breakdown
+        const modalCashCounted = document.getElementById('modal-cash-counted');
+        const modalVoucherCounted = document.getElementById('modal-voucher-counted');
+        if (modalCashCounted) modalCashCounted.textContent = formatCurrency(cut.cash_counted || 0);
+        if (modalVoucherCounted) modalVoucherCounted.textContent = formatCurrency(cut.voucher_counted || 0);
+
         expectedInput.value = cut.system_expected || '';
         statusSelect.value = cut.status || 'pending';
         notesInput.value = cut.reviewer_notes || '';
