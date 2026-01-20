@@ -124,12 +124,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         return `
       <tr data-id="${cut.id}">
-        <td>${formatDate(cut.created_at)}</td>
-        <td>${cut.user_email || 'Usuario'}</td>
-        <td class="text-right">${formatCurrency(cut.total_counted)}</td>
-        <td class="text-right">${formatCurrency(adjustmentsTotal)}</td>
-        <td class="text-right">${formatCurrency(cut.system_expected)}</td>
-        <td>
+        <td data-label="Fecha">${formatDate(cut.created_at)}</td>
+        <td data-label="Usuario">${cut.user_email || 'Usuario'}</td>
+        <td data-label="Contado" class="text-right">${formatCurrency(cut.total_counted)}</td>
+        <td data-label="Gastos" class="text-right">${formatCurrency(adjustmentsTotal)}</td>
+        <td data-label="Esperado" class="text-right">${formatCurrency(cut.system_expected)}</td>
+        <td data-label="Diferencia">
           ${diff.difference !== null ? `
             <span class="traffic-light ${diff.class}">
               <span class="traffic-light-icon"></span>
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </span>
           ` : '<span class="text-muted">—</span>'}
         </td>
-        <td>${renderStatusBadge(cut.status)}</td>
+        <td data-label="Estado">${renderStatusBadge(cut.status)}</td>
       </tr>
     `;
     }
