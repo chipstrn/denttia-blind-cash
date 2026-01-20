@@ -570,14 +570,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Expenses table with user column
             if (expenses.length > 0) {
-                weekExpensesBody.innerHTML = expenses.map(exp => `
-                    <tr data-user="${exp.user_name || 'unknown'}">
+                // Store expenses for easy access
+                window.weekExpenses = expenses;
+
+                weekExpensesBody.innerHTML = expenses.map((exp, index) => `
+                    <tr data-user="${exp.user_name || 'unknown'}" data-expense-index="${index}" class="clickable-row" title="Clic para editar">
                         <td data-label="Fecha">${formatDateShort(exp.created_at)}</td>
                         <td data-label="Usuario" style="font-size: var(--font-size-sm);">${exp.user_name || 'Usuario'}</td>
                         <td data-label="Categoría">${categoryLabels[exp.category] || exp.category}</td>
                         <td data-label="Método"><span style="padding: 2px 6px; border-radius: var(--radius-sm); font-size: var(--font-size-xs); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span></td>
                         <td data-label="Descripción">${escapeHtml(exp.description)}</td>
-                        <td data-label="Monto" class="text-right" style="font-weight: 600;">${formatCurrency(exp.amount)}</td>
+                        <td data-label="Monto" class="text-right" style="font-weight: 600;">
+                            ${formatCurrency(exp.amount)}
+                            <span style="font-size: 1rem; margin-left: 4px; opacity: 0.5;">✏️</span>
+                        </td>
                     </tr>
                 `).join('');
             } else {
@@ -638,6 +644,124 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // ============ Edit Expense Modal Logic ============
+    const editExpenseModalBackdrop = document.getElementById('edit-expense-modal-backdrop');
+    const closeEditExpenseModalBtn = document.getElementById('close-edit-expense-modal');
+    const saveExpenseChangesBtn = document.getElementById('save-expense-changes-btn');
+    const deleteExpenseBtn = document.getElementById('delete-expense-btn');
+
+    // Inputs
+    const editExpenseId = document.getElementById('edit-expense-id');
+    const editExpenseCategory = document.getElementById('edit-expense-category');
+    const editExpenseMethod = document.getElementById('edit-expense-method');
+    const editExpenseDescription = document.getElementById('edit-expense-description');
+    const editExpenseAmount = document.getElementById('edit-expense-amount');
+
+    function openEditExpenseModal(expense) {
+        if (!editExpenseModalBackdrop) return;
+
+        // Fill form
+        editExpenseId.value = expense.id;
+        editExpenseCategory.value = expense.category;
+        editExpenseMethod.value = expense.payment_method;
+        editExpenseDescription.value = expense.description;
+        editExpenseAmount.value = expense.amount;
+
+        editExpenseModalBackdrop.classList.add('active');
+    }
+
+    function closeEditExpenseModal() {
+        if (editExpenseModalBackdrop) editExpenseModalBackdrop.classList.remove('active');
+    }
+
+    if (closeEditExpenseModalBtn) {
+        closeEditExpenseModalBtn.addEventListener('click', closeEditExpenseModal);
+    }
+
+    if (editExpenseModalBackdrop) {
+        editExpenseModalBackdrop.addEventListener('click', (e) => {
+            if (e.target === editExpenseModalBackdrop) closeEditExpenseModal();
+        });
+    }
+
+    // Save Changes
+    if (saveExpenseChangesBtn) {
+        saveExpenseChangesBtn.addEventListener('click', async () => {
+            const id = editExpenseId.value;
+            const category = editExpenseCategory.value;
+            const method = editExpenseMethod.value;
+            const description = editExpenseDescription.value.trim();
+            const amount = parseFloat(editExpenseAmount.value);
+
+            if (!description || isNaN(amount) || amount <= 0) {
+                alert('Por favor completa todos los campos correctamente.');
+                return;
+            }
+
+            saveExpenseChangesBtn.disabled = true;
+            saveExpenseChangesBtn.textContent = 'Guardando...';
+
+            try {
+                const { error } = await window.supabaseClient
+                    .from('expenses')
+                    .update({
+                        category: category,
+                        payment_method: method,
+                        description: description,
+                        amount: amount
+                    })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // Success
+                closeEditExpenseModal();
+                loadWeeklyAudit(); // Refresh data
+
+            } catch (error) {
+                console.error('Error updating expense:', error);
+                alert('Error al actualizar el gasto.');
+            } finally {
+                saveExpenseChangesBtn.disabled = false;
+                saveExpenseChangesBtn.textContent = 'Guardar Cambios';
+            }
+        });
+    }
+
+    // Delete Expense
+    if (deleteExpenseBtn) {
+        deleteExpenseBtn.addEventListener('click', async () => {
+            const id = editExpenseId.value;
+            if (!id) return;
+
+            if (!confirm('¿Estás seguro de que deseas eliminar este gasto?')) return;
+
+            deleteExpenseBtn.disabled = true;
+            deleteExpenseBtn.textContent = 'Eliminando...';
+
+            try {
+                const { error } = await window.supabaseClient
+                    .from('expenses')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // Success
+                closeEditExpenseModal();
+                loadWeeklyAudit(); // Refresh data
+
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+                alert('Error al eliminar el gasto.');
+            } finally {
+                deleteExpenseBtn.disabled = false;
+                deleteExpenseBtn.textContent = 'Eliminar';
+            }
+        });
+    }
+
+
     // ============ Event Listeners ============
     cutsTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr[data-id]');
@@ -658,6 +782,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Safe access to cut data
                 if (window.weekCuts && window.weekCuts[index]) {
                     openModal(window.weekCuts[index]);
+                }
+            }
+        });
+    }
+
+    // Single click listener for expenses (Mobile Optimized)
+    if (weekExpensesBody) {
+        weekExpensesBody.addEventListener('click', (e) => {
+            const row = e.target.closest('tr[data-expense-index]');
+            if (row) {
+                const index = parseInt(row.dataset.expenseIndex);
+                if (window.weekExpenses && window.weekExpenses[index]) {
+                    openEditExpenseModal(window.weekExpenses[index]);
                 }
             }
         });
@@ -836,9 +973,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const user = await window.auth.getUser();
                 const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
 
+                // Determine date based on selected week
+                let expenseDate = new Date();
+                const weekValue = weekSelect?.value;
+
+                if (weekValue) {
+                    const { startDate, endDate } = getWeekDates(weekValue);
+                    // Check if "now" is inside the selected week
+                    const now = new Date();
+                    const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+                    const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+
+                    if (now < start || now > end) {
+                        // If we are auditing a different week (e.g. past), default to the Sunday of that week
+                        expenseDate = new Date(endDate);
+                        expenseDate.setHours(20, 0, 0, 0); // 8:00 PM
+                    }
+                }
+
                 const { error } = await window.supabaseClient
                     .from('expenses')
                     .insert({
+                        created_at: expenseDate.toISOString(),
                         user_id: user.id,
                         user_name: userName,
                         category: category,
