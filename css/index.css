@@ -60,14 +60,32 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
+  /* Additional Colors for Dynamic UI */
+  --bg-secondary: #F1F5F9;
+  /* slate-100 */
+  --bg-tertiary: #E2E8F0;
+  /* slate-200 */
+  --info: #3B82F6;
+  /* blue-500 */
+  --info-light: #DBEAFE;
+  /* blue-100 */
+  --success-light: #D1FAE5;
+  /* emerald-100 */
+  --warning-light: #FEF3C7;
+  /* amber-100 */
+  --danger-light: #FEE2E2;
+  /* red-100 */
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
 
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Reset */
@@ -203,6 +221,17 @@ h4 {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Custom Select Styling */
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+  cursor: pointer;
 }
 
 .form-input::placeholder {
@@ -861,4 +890,446 @@ h4 {
 
 .hidden {
   display: none !important;
+}
+
+/* Expense Form */
+.expense-form {
+  background: var(--bg-primary);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.expense-form-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.expense-form-row:last-child {
+  margin-bottom: 0;
+}
+
+.expense-form-row .form-group {
+  margin-bottom: 0;
+}
+
+/* Expense Items */
+.expenses-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.expense-item {
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  animation: slideIn 0.2s ease;
+}
+
+.expense-item-header {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.expense-category {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: rgba(37, 99, 235, 0.1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.expense-method {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  background: var(--border-light);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.expense-item-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.expense-description {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.expense-amount {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Expenses Summary */
+.expenses-summary {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border-top: 2px solid var(--accent-primary);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-amount {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* Weekly Audit Styles */
+.audit-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.summary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.summary-card-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.summary-card-value {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+}
+
+.summary-card-value.income {
+  color: var(--success);
+}
+
+.summary-card-value.expense {
+  color: var(--danger);
+}
+
+.summary-card-value.balance {
+  color: var(--accent-primary);
+}
+
+/* Category Breakdown */
+.category-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.category-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-primary);
+}
+
+.category-icon-wrapper {
+  margin-bottom: var(--space-2);
+  width: 100%;
+}
+
+.category-name {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+
+.category-total {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* Week Selector */
+.week-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.week-selector .form-group {
+  margin-bottom: 0;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: 2px solid var(--border-light);
+  margin-bottom: var(--space-6);
+}
+
+.tab {
+  padding: var(--space-3) var(--space-4);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dynamic Summary Cards */
+.summary-card {
+  transition: all var(--transition-smooth);
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Table Row Hover */
+.table tbody tr {
+  transition: all var(--transition-fast);
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Clickable Rows */
+.table tbody tr[data-id] {
+  cursor: pointer;
+}
+
+.table tbody tr[data-id]:hover {
+  background-color: var(--info-light);
+}
+
+/* Badge Styles */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.badge-success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.badge-warning {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.badge-danger {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: var(--info-light);
+  color: var(--info);
+}
+
+/* Card Glow Effect */
+.card:focus-within {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Pulse Animation for Pending */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.status-pending {
+  animation: pulse 2s infinite;
+}
+
+/* Smooth Number Transitions */
+.summary-card-value {
+  transition: all var(--transition-smooth);
+}
+
+/* ============ COLLAPSIBLE SECTIONS ============ */
+.collapsible-section {
+  margin-bottom: var(--space-4);
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.collapsible-header .section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.collapsible-icon {
+  transition: transform var(--transition-smooth);
+  color: var(--text-muted);
+}
+
+.collapsible-section.open .collapsible-icon {
+  transform: rotate(180deg);
+}
+
+.collapsible-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease-out, padding 0.3s ease;
+  padding: 0 var(--space-4);
+}
+
+.collapsible-section.open .collapsible-content {
+  max-height: 2000px;
+  padding: var(--space-4);
+}
+
+/* ============ CLICKABLE INCOME ROWS ============ */
+.table tbody tr.clickable-row {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.table tbody tr.clickable-row:hover {
+  background: var(--info-light);
+  transform: scale(1.005);
+}
+
+/* ============ INTERACTIVE SUMMARY CARDS ============ */
+.summary-card.clickable {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card.clickable::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 50%, rgba(37, 99, 235, 0.05) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.summary-card.clickable:hover::after {
+  opacity: 1;
+}
+
+.summary-card.clickable:active {
+  transform: scale(0.98);
+}
+
+/* ============ NUMBER FORMATTING ============ */
+.number-formatted {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+.text-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ MOBILE COLLAPSIBLE ============ */
+@media (max-width: 768px) {
+  .collapsible-header {
+    padding: var(--space-3);
+  }
+
+  .collapsible-content {
+    padding: 0 var(--space-2);
+  }
+
+  .collapsible-section.open .collapsible-content {
+    padding: var(--space-3) var(--space-2);
+  }
 }

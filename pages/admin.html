@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Denttia - Panel de Administración - Auditoría de Cierres de Caja">
-    <title>DenttiaBalance</title>
+    <meta name="description" content="DenttiaBalance - Panel de Administración">
+    <title>DenttiaBalance - Admin</title>
     <link rel="icon" type="image/png" href="../assets/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,76 +36,289 @@
         <div class="container">
 
             <div class="page-header">
-                <h1 class="page-title">Panel de Auditoría</h1>
-                <p class="page-subtitle">Historial de cierres de caja y conciliación</p>
+                <h1 class="page-title">Panel de Administración</h1>
+                <p class="page-subtitle">Auditoría de ingresos y gastos</p>
             </div>
 
-            <div class="card">
-                <!-- Date Filter -->
-                <div class="date-filter"
-                    style="display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-6); flex-wrap: wrap;">
-                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                        <label class="form-label" for="date-from">Desde</label>
-                        <input type="date" id="date-from" class="form-input">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="daily">📅 Vista Diaria</button>
+                <button class="tab" data-tab="weekly">📊 Auditoría Semanal</button>
+            </div>
+
+            <!-- Daily View Tab -->
+            <div id="daily-tab" class="tab-content active">
+                <div class="card">
+                    <!-- Date Filter -->
+                    <div class="date-filter"
+                        style="display: flex; gap: var(--space-4); align-items: flex-end; margin-bottom: var(--space-6); flex-wrap: wrap;">
+
+                        <!-- New: Daily View Week Selector -->
+                        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                            <label class="form-label" for="daily-week-select">📅 Filtrar por Semana</label>
+                            <select id="daily-week-select" class="form-input">
+                                <!-- Populated by JavaScript -->
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                            <label class="form-label" for="date-from">Desde</label>
+                            <input type="date" id="date-from" class="form-input">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                            <label class="form-label" for="date-to">Hasta</label>
+                            <input type="date" id="date-to" class="form-input">
+                        </div>
+                        <button id="filter-btn" class="btn btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            Filtrar
+                        </button>
+                        <button id="clear-filter-btn" class="btn btn-secondary">
+                            Limpiar
+                        </button>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                        <label class="form-label" for="date-to">Hasta</label>
-                        <input type="date" id="date-to" class="form-input">
+
+                    <!-- Loading Indicator -->
+                    <div id="loading" class="loading">
+                        <div class="spinner"></div>
                     </div>
-                    <button id="filter-btn" class="btn btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        Filtrar
-                    </button>
-                    <button id="clear-filter-btn" class="btn btn-secondary">
-                        Limpiar
-                    </button>
-                </div>
 
-                <!-- Loading Indicator -->
-                <div id="loading" class="loading">
-                    <div class="spinner"></div>
-                </div>
+                    <!-- Empty State -->
+                    <div id="empty-state" class="empty-state hidden">
+                        <div class="empty-state-icon">📋</div>
+                        <h3>Sin registros</h3>
+                        <p class="text-muted">No hay cierres de caja registrados aún.</p>
+                    </div>
 
-                <!-- Empty State -->
-                <div id="empty-state" class="empty-state hidden">
-                    <div class="empty-state-icon">📋</div>
-                    <h3>Sin registros</h3>
-                    <p class="text-muted">No hay cierres de caja registrados aún.</p>
+                    <!-- Data Table -->
+                    <div class="table-wrapper">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Usuario</th>
+                                    <th class="text-right">Contado</th>
+                                    <th class="text-right">Gastos</th>
+                                    <th class="text-right">Esperado</th>
+                                    <th>Diferencia</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuts-table-body">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Data Table -->
-                <div class="table-wrapper">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Usuario</th>
-                                <th class="text-right">Contado</th>
-                                <th class="text-right">Gastos</th>
-                                <th class="text-right">Esperado</th>
-                                <th>Diferencia</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cuts-table-body">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
+            <!-- Weekly Audit Tab -->
+            <div id="weekly-tab" class="tab-content">
+                <div class="card">
+                    <!-- Week Selector -->
+                    <div class="week-selector">
+                        <div class="form-group" style="flex: 1; max-width: 350px;">
+                            <label class="form-label" for="week-select">📅 Selecciona la Semana a Auditar</label>
+                            <select id="week-select" class="form-input">
+                                <!-- Populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Admin Add Expense Section -->
+                    <div class="section"
+                        style="background: var(--bg-primary); padding: var(--space-4); border-radius: var(--radius-lg); margin-bottom: var(--space-6);">
+                        <h3 class="section-title" style="margin-bottom: var(--space-4);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Agregar Gasto (Admin)
+                        </h3>
+                        <div class="expense-form-row">
+                            <div class="form-group" style="flex: 2; min-width: 150px;">
+                                <label class="form-label" for="admin-expense-category">Categoría</label>
+                                <select id="admin-expense-category" class="form-input">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="renta">🏠 Renta</option>
+                                    <option value="material">🦷 Material Dental</option>
+                                    <option value="insumos">📦 Insumos</option>
+                                    <option value="nomina">💼 Nómina</option>
+                                    <option value="comisiones">💰 Comisiones</option>
+                                    <option value="servicios">⚡ Servicios (luz, agua, internet)</option>
+                                    <option value="mantenimiento">🔧 Mantenimiento</option>
+                                    <option value="otros">📋 Otros</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1; min-width: 120px;">
+                                <label class="form-label" for="admin-expense-method">Método</label>
+                                <select id="admin-expense-method" class="form-input">
+                                    <option value="efectivo">💵 Efectivo</option>
+                                    <option value="transferencia">🏦 Transferencia</option>
+                                    <option value="tarjeta">💳 Tarjeta</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="expense-form-row">
+                            <div class="form-group" style="flex: 2; min-width: 150px;">
+                                <label class="form-label" for="admin-expense-description">Descripción</label>
+                                <input type="text" id="admin-expense-description" class="form-input"
+                                    placeholder="Ej: Pago de luz de enero" maxlength="200">
+                            </div>
+                            <div class="form-group" style="flex: 1; min-width: 100px;">
+                                <label class="form-label" for="admin-expense-amount">Monto</label>
+                                <input type="number" id="admin-expense-amount" class="form-input" placeholder="0.00"
+                                    step="0.01" min="0" inputmode="decimal">
+                            </div>
+                            <button type="button" id="admin-add-expense-btn" class="btn btn-primary"
+                                style="align-self: flex-end; min-height: 44px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Guardar Gasto
+                            </button>
+                        </div>
+                        <p id="admin-expense-message" class="text-success hidden mt-4 text-center"></p>
+                    </div>
+
+                    <!-- Week Summary Cards -->
+                    <div class="audit-summary">
+                        <div class="summary-card clickable" onclick="scrollToSection('income')"
+                            title="Ver detalles de ingresos">
+                            <div class="summary-card-label">💰 Ingresos Totales</div>
+                            <div class="summary-card-value income" id="week-income">$0.00</div>
+                        </div>
+                        <div class="summary-card clickable" onclick="scrollToSection('expenses')"
+                            title="Ver detalles de gastos">
+                            <div class="summary-card-label">📋 Gastos Totales</div>
+                            <div class="summary-card-value expense" id="week-expenses">$0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">📊 Balance</div>
+                            <div class="summary-card-value balance" id="week-balance">$0.00</div>
+                        </div>
+                        <div class="summary-card clickable" onclick="scrollToSection('income')" title="Ver diferencias">
+                            <div class="summary-card-label">⚠️ Diferencias</div>
+                            <div class="summary-card-value" id="week-differences">$0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- Income Details with Differences (COLLAPSIBLE) -->
+                    <div class="collapsible-section open" data-section="income">
+                        <div class="collapsible-header" onclick="toggleSection('income')">
+                            <h3 class="section-title">📊 Detalle de Ingresos y Diferencias</h3>
+                            <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content">
+                            <div class="table-wrapper">
+                                <table class="table" id="income-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Usuario</th>
+                                            <th class="text-right">Contado</th>
+                                            <th class="text-right">Esperado</th>
+                                            <th class="text-right">Diferencia</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="week-income-body">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">Selecciona una semana</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses by Category (COLLAPSIBLE) -->
+                    <div class="collapsible-section" data-section="category">
+                        <div class="collapsible-header" onclick="toggleSection('category')">
+                            <h3 class="section-title">🏷️ Gastos por Categoría</h3>
+                            <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content">
+                            <div id="category-breakdown" class="category-breakdown">
+                                <p class="text-muted">Selecciona una semana para ver el desglose</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses by Payment Method (COLLAPSIBLE) -->
+                    <div class="collapsible-section" data-section="method">
+                        <div class="collapsible-header" onclick="toggleSection('method')">
+                            <h3 class="section-title">💳 Gastos por Método de Pago</h3>
+                            <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content">
+                            <div id="method-breakdown" class="category-breakdown">
+                                <p class="text-muted">Selecciona una semana para ver el desglose</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Expenses Table (COLLAPSIBLE) -->
+                    <div class="collapsible-section" data-section="expenses">
+                        <div class="collapsible-header" onclick="toggleSection('expenses')">
+                            <h3 class="section-title">📋 Detalle de Gastos</h3>
+                            <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content">
+                            <div id="week-expenses-loading" class="loading hidden">
+                                <div class="spinner"></div>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Usuario</th>
+                                            <th>Categoría</th>
+                                            <th>Método</th>
+                                            <th>Descripción</th>
+                                            <th class="text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="week-expenses-body">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">Selecciona una semana</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
         </div>
     </main>
 
-    <!-- Detail Modal -->
+    <!-- Detail Modal for Daily View -->
     <div id="modal-backdrop" class="modal-backdrop">
         <div id="detail-modal" class="modal">
             <div class="modal-header">
-                <h3>Detalle del Corte</h3>
+                <h3>Detalles del Cierre</h3>
                 <button id="close-modal" class="btn btn-ghost" aria-label="Cerrar">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -114,36 +327,52 @@
                 </button>
             </div>
             <div class="modal-body">
-                <!-- Record Info -->
+                <!-- Submitted Info -->
                 <div class="section">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-                        <div>
-                            <p class="form-label">Fecha</p>
-                            <p id="modal-date" style="font-weight: 500;">--</p>
+                    <h4 style="margin-bottom: var(--space-4);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="vertical-align: middle; margin-right: var(--space-2);">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        Datos Registrados
+                    </h4>
+                    <div style="display: grid; gap: var(--space-3);">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="text-muted">Fecha:</span>
+                            <span id="modal-date">-</span>
                         </div>
-                        <div>
-                            <p class="form-label">Usuario</p>
-                            <p id="modal-user" style="font-weight: 500;">--</p>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="text-muted">Usuario:</span>
+                            <span id="modal-user">-</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="text-muted">Total Contado:</span>
+                            <span id="modal-total-counted" style="font-weight: 600; font-size: 1.25rem;">$0.00</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Counted Amount -->
+                <!-- Expenses for this day -->
                 <div class="section">
-                    <p class="form-label">Total Contado</p>
-                    <p id="modal-total-counted" style="font-size: var(--font-size-2xl); font-weight: 600;">--</p>
-                </div>
-
-                <!-- Adjustments -->
-                <div class="section">
-                    <p class="form-label">Gastos Reportados</p>
-                    <div id="modal-adjustments-list" class="adjustment-list mb-4">
-                        <!-- Will be populated by JavaScript -->
+                    <h4 style="margin-bottom: var(--space-4);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="vertical-align: middle; margin-right: var(--space-2);">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        Gastos del Día
+                    </h4>
+                    <div id="modal-expenses-list" class="expenses-list">
+                        <p class="text-muted text-center">Sin gastos registrados</p>
                     </div>
-                    <div
-                        style="display: flex; justify-content: space-between; padding-top: var(--space-3); border-top: 1px solid var(--border-light);">
-                        <span class="form-label" style="margin: 0;">Total Gastos:</span>
-                        <span id="modal-adjustments-total" style="font-weight: 600;">$0.00</span>
+                    <div id="modal-expenses-total" class="expenses-summary hidden">
+                        <div class="summary-row">
+                            <span>Total Gastos:</span>
+                            <span id="modal-total-expenses" class="summary-amount">$0.00</span>
+                        </div>
                     </div>
                 </div>
 
@@ -170,8 +399,6 @@
                         <span class="text-muted">Ingresa el monto esperado</span>
                     </div>
 
-
-
                     <div class="form-group">
                         <label class="form-label" for="status-select">Estado</label>
                         <select id="status-select" class="form-input">
@@ -186,6 +413,64 @@
                         <textarea id="reviewer-notes" class="form-input" rows="3" placeholder="Notas opcionales..."
                             style="resize: vertical;"></textarea>
                     </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-light); margin: var(--space-6) 0;">
+
+                <!-- Add Expense in Modal (Admin Only) -->
+                <div class="section">
+                    <h4 style="margin-bottom: var(--space-4);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="vertical-align: middle; margin-right: var(--space-2);">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Agregar Gasto a Este Día
+                    </h4>
+                    <p class="text-muted mb-4" style="font-size: var(--font-size-sm);">
+                        📅 Fecha del corte: <strong id="modal-expense-date">-</strong>
+                    </p>
+                    <div class="expense-form-row">
+                        <div class="form-group" style="flex: 2; min-width: 120px;">
+                            <label class="form-label" for="modal-add-category">Categoría</label>
+                            <select id="modal-add-category" class="form-input">
+                                <option value="">Seleccionar...</option>
+                                <option value="renta">🏠 Renta</option>
+                                <option value="material">🦷 Material</option>
+                                <option value="insumos">📦 Insumos</option>
+                                <option value="nomina">💼 Nómina</option>
+                                <option value="comisiones">💰 Comisiones</option>
+                                <option value="servicios">⚡ Servicios</option>
+                                <option value="mantenimiento">🔧 Mantenimiento</option>
+                                <option value="otros">📋 Otros</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 100px;">
+                            <label class="form-label" for="modal-add-method">Método</label>
+                            <select id="modal-add-method" class="form-input">
+                                <option value="efectivo">💵 Efectivo</option>
+                                <option value="transferencia">🏦 Transferencia</option>
+                                <option value="tarjeta">💳 Tarjeta</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="expense-form-row">
+                        <div class="form-group" style="flex: 2; min-width: 120px;">
+                            <label class="form-label" for="modal-add-description">Descripción</label>
+                            <input type="text" id="modal-add-description" class="form-input"
+                                placeholder="Ej: Pago de luz" maxlength="200">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 80px;">
+                            <label class="form-label" for="modal-add-amount">Monto</label>
+                            <input type="number" id="modal-add-amount" class="form-input" placeholder="0.00" step="0.01"
+                                min="0">
+                        </div>
+                        <button type="button" id="modal-add-expense-btn" class="btn btn-secondary"
+                            style="align-self: flex-end; min-height: 44px;">
+                            + Agregar
+                        </button>
+                    </div>
+                    <p id="modal-add-expense-msg" class="text-success hidden mt-2 text-center"></p>
                 </div>
             </div>
             <div class="modal-footer">
