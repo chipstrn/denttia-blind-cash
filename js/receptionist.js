@@ -225,10 +225,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Use selected date combined with current time for accurate record
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${selectedDate}T${hours}:${minutes}:${seconds}`;
+            const [year, month, day] = selectedDate.split('-').map(Number);
+            // Create date in local time using the selected date and current wall-clock time
+            const localDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+            // Convert to ISO (UTC) for correct storage
+            const timestamp = localDate.toISOString();
 
             // 1. Insert blind cut record (income)
             const { error: incomeError } = await window.supabaseClient

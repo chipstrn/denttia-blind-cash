@@ -463,6 +463,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalExpensesList.innerHTML = '<p class="text-muted text-center">Error al cargar gastos</p>';
             modalExpensesTotal.classList.add('hidden');
         }
+
+        // Show the modal
+        modalBackdrop.classList.add('active');
     }
 
     function closeModal() {
