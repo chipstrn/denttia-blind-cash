@@ -504,6 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             await loadCuts();
+            await loadWeeklyAudit();
             closeModal();
         } catch (error) {
             console.error('Error saving review:', error);
