@@ -1351,12 +1351,30 @@ select.form-input {
   letter-spacing: -0.02em;
 }
 
+/* Numeric Alignment & Spacing */
 .text-right,
 .table .text-right,
 .table th.text-right,
 .table td.text-right {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  padding-right: 1rem;
+  /* Ensure consistent spacing from right edge */
+}
+
+/* Ensure Headers and Cells have symmetric padding */
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  /* Horizontal symmetry */
+  vertical-align: middle;
+}
+
+/* Explicitly align numeric headers in Week View if missing class */
+#income-table th:nth-child(n+3),
+#cuts-table th:nth-child(n+3) {
+  text-align: right;
+  padding-right: 1rem;
 }
 
 /* ============ MOBILE COLLAPSIBLE ============ */

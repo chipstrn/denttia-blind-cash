@@ -1315,9 +1315,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (now >= targetStart && now <= targetEnd) {
                         expenseDate = now; // Use current time if within range
                     } else {
-                        // Default to end of range (e.g. Sunday 8pm or Last Day 8pm)
+                        // Default to end of range (e.g. Sunday) but at NOON (12:00) to avoid timezone/date boundary issues
                         expenseDate = new Date(targetEnd);
-                        expenseDate.setHours(20, 0, 0, 0);
+                        expenseDate.setHours(12, 0, 0, 0);
                     }
                 }
 
