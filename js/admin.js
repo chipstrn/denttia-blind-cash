@@ -1488,11 +1488,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const d = String(date.getDate()).padStart(2, '0');
                 return `${y}-${m}-${d}`;
             };
+            const iso = getISOWeekAndYear(monday);
             return {
                 start: formatDateInput(monday),
                 end: formatDateInput(sunday),
-                year: monday.getFullYear(),
-                week: getWeekNumber(monday)
+                year: iso.year,
+                week: iso.week
             };
         };
 
