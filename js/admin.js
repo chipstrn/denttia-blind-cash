@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const auditDateFrom = document.getElementById('audit-date-from');
     const auditDateTo = document.getElementById('audit-date-to');
     const auditFilterBtn = document.getElementById('audit-filter-btn');
+    const auditClearBtn = document.getElementById('audit-clear-btn');
 
     // Password Modal Elements
     const changePasswordBtn = document.getElementById('change-password-btn');
@@ -926,6 +927,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Clear week selector when using custom dates
             if (weekSelect) weekSelect.value = '';
             loadWeeklyAuditCustom(from, to);
+        });
+    }
+
+    // Audit Clear Button (matches Daily View "Limpiar")
+    if (auditClearBtn) {
+        auditClearBtn.addEventListener('click', () => {
+            // Clear date inputs
+            if (auditDateFrom) auditDateFrom.value = '';
+            if (auditDateTo) auditDateTo.value = '';
+
+            // Reset to current week (first option)
+            if (weekSelect && weekSelect.options.length > 0) {
+                weekSelect.selectedIndex = 0;
+            }
+
+            // Reload with current week
+            loadWeeklyAudit();
         });
     }
 
