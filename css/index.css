@@ -1351,7 +1351,10 @@ select.form-input {
   letter-spacing: -0.02em;
 }
 
-.text-right {
+.text-right,
+.table .text-right,
+.table th.text-right,
+.table td.text-right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

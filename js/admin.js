@@ -1291,21 +1291,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const user = await window.auth.getUser();
                 const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
 
-                // Determine date based on selected week
+                // Determine date based on CURRENTLY ACTIVE FILTER
                 let expenseDate = new Date();
+                const customStart = auditDateFrom?.value;
+                const customEnd = auditDateTo?.value;
                 const weekValue = weekSelect?.value;
 
-                if (weekValue) {
-                    const { startDate, endDate } = getWeekDates(weekValue);
-                    // Check if "now" is inside the selected week
-                    const now = new Date();
-                    const start = new Date(startDate); start.setHours(0, 0, 0, 0);
-                    const end = new Date(endDate); end.setHours(23, 59, 59, 999);
+                let targetStart, targetEnd;
 
-                    if (now < start || now > end) {
-                        // If we are auditing a different week (e.g. past), default to the Sunday of that week
-                        expenseDate = new Date(endDate);
-                        expenseDate.setHours(20, 0, 0, 0); // 8:00 PM
+                if (customStart && customEnd) {
+                    // Priority 1: Custom Date Range
+                    targetStart = new Date(customStart + 'T00:00:00');
+                    targetEnd = new Date(customEnd + 'T23:59:59');
+                } else if (weekValue) {
+                    // Priority 2: Selected Week
+                    const { startDate, endDate } = getWeekDates(weekValue);
+                    targetStart = new Date(startDate); targetStart.setHours(0, 0, 0, 0);
+                    targetEnd = new Date(endDate); targetEnd.setHours(23, 59, 59, 999);
+                }
+
+                if (targetStart && targetEnd) {
+                    const now = new Date();
+                    if (now >= targetStart && now <= targetEnd) {
+                        expenseDate = now; // Use current time if within range
+                    } else {
+                        // Default to end of range (e.g. Sunday 8pm or Last Day 8pm)
+                        expenseDate = new Date(targetEnd);
+                        expenseDate.setHours(20, 0, 0, 0);
                     }
                 }
 

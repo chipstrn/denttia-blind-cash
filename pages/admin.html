@@ -160,16 +160,7 @@
                         </button>
                     </div>
 
-                    <!-- Discrepancy Type Filter (Weekly) -->
-                    <div class="discrepancy-filter"
-                        style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4); flex-wrap: wrap;">
-                        <span
-                            style="color: var(--text-secondary); align-self: center; margin-right: var(--space-2);">Ver
-                            diferencias:</span>
-                        <button id="weekly-diff-global" class="btn btn-sm btn-primary">📊 Global</button>
-                        <button id="weekly-diff-cash" class="btn btn-sm btn-secondary">💵 Efectivo</button>
-                        <button id="weekly-diff-voucher" class="btn btn-sm btn-secondary">💳 Vouchers</button>
-                    </div>
+
 
                     <!-- Admin Add Expense Section -->
                     <div class="section"
@@ -255,7 +246,18 @@
                     <!-- Income Details with Differences (COLLAPSIBLE) -->
                     <div class="collapsible-section open" data-section="income">
                         <div class="collapsible-header" onclick="toggleSection('income')">
-                            <h3 class="section-title">📊 Detalle de Ingresos y Diferencias</h3>
+                            <h3 class="section-title">
+                                📊 Detalle de Ingresos y Diferencias
+                                <div id="weekly-diff-buttons" class="discrepancy-filter"
+                                    style="display: inline-flex; gap: 5px; margin-left: 15px;">
+                                    <button id="weekly-diff-global" class="btn btn-sm btn-primary"
+                                        onclick="event.stopPropagation()">Global</button>
+                                    <button id="weekly-diff-cash" class="btn btn-sm btn-secondary"
+                                        onclick="event.stopPropagation()">Efectivo</button>
+                                    <button id="weekly-diff-voucher" class="btn btn-sm btn-secondary"
+                                        onclick="event.stopPropagation()">Vouchers</button>
+                                </div>
+                            </h3>
                             <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2">
                                 <polyline points="6 9 12 15 18 9"></polyline>
