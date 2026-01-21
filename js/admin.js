@@ -909,13 +909,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         auditFilterBtn.addEventListener('click', () => {
             const from = auditDateFrom?.value;
             const to = auditDateTo?.value;
-            if (from && to) {
-                // Clear week selector when using custom dates
-                if (weekSelect) weekSelect.value = '';
-                loadWeeklyAuditCustom(from, to);
-            } else {
-                alert('Por favor selecciona ambas fechas (Desde y Hasta)');
+
+            // If both dates are empty, tell user to select week or enter dates
+            if (!from && !to) {
+                alert('Selecciona una semana rápida arriba, o ingresa un rango de fechas personalizado.');
+                return;
             }
+
+            // If only one date is entered
+            if (!from || !to) {
+                alert('Por favor selecciona ambas fechas (Desde y Hasta)');
+                return;
+            }
+
+            // Clear week selector when using custom dates
+            if (weekSelect) weekSelect.value = '';
+            loadWeeklyAuditCustom(from, to);
         });
     }
 
