@@ -223,8 +223,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const currentUser = await window.auth.getUser();
             const userName = currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuario';
 
-            // Use selected date for timestamp (noon to avoid timezone issues)
-            const timestamp = `${selectedDate}T12:00:00`;
+            // Use selected date combined with current time for accurate record
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timestamp = `${selectedDate}T${hours}:${minutes}:${seconds}`;
 
             // 1. Insert blind cut record (income)
             const { error: incomeError } = await window.supabaseClient

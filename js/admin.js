@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ============ State ============
     let cuts = [];
     let selectedCut = null;
+    let discrepancyFilterType = 'global'; // 'global', 'cash', 'voucher'
 
     // Category and Method Labels
     const categoryLabels = {
@@ -269,30 +270,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-        let totalExpected = null;
-        let diff = null;
+        // Calculate differences based on filter type
+        let displayExpected = null;
+        let displayDiff = null;
 
-        if (expectedCash !== null || expectedVoucher !== null) {
-            totalExpected = (expectedCash || 0) + (expectedVoucher || 0);
-            const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
-            const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
-            diff = cashDiff + voucherDiff;
+        if (discrepancyFilterType === 'cash') {
+            // Cash only
+            if (expectedCash !== null) {
+                displayExpected = expectedCash;
+                displayDiff = cashCounted - expectedCash;
+            }
+        } else if (discrepancyFilterType === 'voucher') {
+            // Voucher only
+            if (expectedVoucher !== null) {
+                displayExpected = expectedVoucher;
+                displayDiff = voucherCounted - expectedVoucher;
+            }
+        } else {
+            // Global (both)
+            if (expectedCash !== null || expectedVoucher !== null) {
+                displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
+                const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+                const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
+                displayDiff = cashDiff + voucherDiff;
+            }
         }
 
-        const diffClass = diff === null ? '' : diff === 0 ? 'exact' : (diff > 0 ? 'over' : 'under');
+        const diffClass = displayDiff === null ? '' : displayDiff === 0 ? 'exact' : (displayDiff > 0 ? 'over' : 'under');
+        const filterLabel = discrepancyFilterType === 'cash' ? '💵' : discrepancyFilterType === 'voucher' ? '💳' : '';
 
         return `
             <tr data-id="${cut.id}">
                 <td data-label="Fecha">${formatDate(cut.created_at)}</td>
                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
-                <td data-label="Contado" class="text-right">${formatCurrency(cut.total_counted)}</td>
-                <td data-label="Gastos" class="text-right">${formatCurrency(adjustmentsTotal)}</td>
-                <td data-label="Esperado" class="text-right">${totalExpected !== null ? formatCurrency(totalExpected) : '<span class="text-muted">—</span>'}</td>
-                <td data-label="Diferencia">
-                    ${diff !== null ? `
+                <td data-label="Contado" class="text-right number-formatted">${formatCurrency(cut.total_counted)}</td>
+                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(adjustmentsTotal)}</td>
+                <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
+                <td data-label="Diferencia" class="text-right number-formatted">
+                    ${displayDiff !== null ? `
                         <span class="traffic-light ${diffClass}">
                             <span class="traffic-light-icon"></span>
-                            ${diff >= 0 ? '+' : ''}${formatCurrency(diff)}
+                            ${displayDiff >= 0 ? '+' : ''}${formatCurrency(displayDiff)}
                         </span>
                     ` : '<span class="text-muted">—</span>'}
                 </td>
@@ -424,6 +442,56 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedCut = null;
     }
 
+    // Refresh only the expenses list in the modal (preserves admin inputs)
+    async function refreshModalExpenses() {
+        if (!window.currentCutDate) return;
+
+        const modalExpensesList = document.getElementById('modal-expenses-list');
+        const modalExpensesTotal = document.getElementById('modal-expenses-total');
+        const modalTotalExpenses = document.getElementById('modal-total-expenses');
+
+        if (!modalExpensesList) return;
+
+        const dayStart = window.currentCutDate + 'T00:00:00';
+        const dayEnd = window.currentCutDate + 'T23:59:59';
+
+        try {
+            const { data: expenses, error } = await window.supabaseClient
+                .from('expenses')
+                .select('*')
+                .gte('created_at', dayStart)
+                .lte('created_at', dayEnd)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (expenses && expenses.length > 0) {
+                modalExpensesList.innerHTML = expenses.map(exp => `
+                    <div class="expense-item" style="padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-secondary); margin-bottom: var(--space-2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
+                            <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">👤 ${exp.user_name || 'Usuario'}</span>
+                            <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
+                        </div>
+                        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
+                            <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
+                            <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span>
+                        </div>
+                        <div style="font-size: var(--font-size-sm); color: var(--text-muted);">${escapeHtml(exp.description)}</div>
+                    </div>
+                `).join('');
+
+                const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+                if (modalTotalExpenses) modalTotalExpenses.textContent = formatCurrency(total);
+                if (modalExpensesTotal) modalExpensesTotal.classList.remove('hidden');
+            } else {
+                modalExpensesList.innerHTML = '<p class="text-muted text-center">Sin gastos registrados este día</p>';
+                if (modalExpensesTotal) modalExpensesTotal.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error refreshing expenses:', error);
+        }
+    }
+
     function updateDifferenceDisplay() {
         if (!selectedCut) return;
 
@@ -521,15 +589,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (error) throw error;
 
-            await loadCuts();
-            await loadWeeklyAudit();
+            await refreshActiveViews();
             closeModal();
+
+            // Alert success
+            const successMsg = document.createElement('div');
+            successMsg.textContent = '✅ Cambios guardados';
+            successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: var(--success); color: white; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 9999; animation: slideIn 0.3s ease-out;';
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+
         } catch (error) {
             console.error('Error saving review:', error);
             alert('Error al guardar. Por favor intenta de nuevo.');
         } finally {
             saveReviewBtn.disabled = false;
             saveReviewBtn.textContent = 'Guardar Cambios';
+        }
+    }
+
+    // Helper to refresh all views respecting current filters
+    async function refreshActiveViews() {
+        // 1. Refresh Daily View
+        await loadCuts(dateFromInput.value || null, dateToInput.value || null);
+
+        // 2. Refresh Weekly Audit
+        const customStart = auditDateFrom?.value;
+        const customEnd = auditDateTo?.value;
+
+        if (customStart && customEnd) {
+            // Respect custom date filter if active
+            await loadWeeklyAuditCustom(customStart, customEnd);
+        } else {
+            // Otherwise use the week selector
+            await loadWeeklyAudit();
         }
     }
 
@@ -614,25 +707,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
                         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-                        // Calculate total expected and difference
-                        let totalExpected = null;
+                        // Calculate total expected and difference based on filter type
+                        let displayExpected = null;
                         let diff = null;
-                        if (expectedCash !== null || expectedVoucher !== null) {
-                            totalExpected = (expectedCash || 0) + (expectedVoucher || 0);
-                            const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
-                            const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
-                            diff = cashDiff + voucherDiff;
+
+                        if (discrepancyFilterType === 'cash') {
+                            // Cash only
+                            if (expectedCash !== null) {
+                                displayExpected = expectedCash;
+                                diff = cashCounted - expectedCash;
+                            }
+                        } else if (discrepancyFilterType === 'voucher') {
+                            // Voucher only
+                            if (expectedVoucher !== null) {
+                                displayExpected = expectedVoucher;
+                                diff = voucherCounted - expectedVoucher;
+                            }
+                        } else {
+                            // Global (both)
+                            if (expectedCash !== null || expectedVoucher !== null) {
+                                displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
+                                const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+                                const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
+                                diff = cashDiff + voucherDiff;
+                            }
                         }
 
                         const diffClass = diff === null ? '' : diff === 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-warning';
                         const statusBadge = renderStatusBadge(cut.status);
+                        const filterLabel = discrepancyFilterType === 'cash' ? '💵' : discrepancyFilterType === 'voucher' ? '💳' : '';
 
                         return `
                             <tr class="clickable-row" data-cut-index="${index}" title="Clic para ver detalles">
                                 <td data-label="Fecha">${formatDateShort(cut.created_at)}</td>
                                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                                 <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(counted)}</td>
-                                <td data-label="Esperado" class="text-right number-formatted">${totalExpected !== null ? formatCurrency(totalExpected) : '<span class="text-muted">—</span>'}</td>
+                                <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${diff !== null ? (diff >= 0 ? '+' : '') + formatCurrency(diff) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Estado">${statusBadge}</td>
                             </tr>
@@ -987,9 +1097,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Close modal first
                 closeModal();
 
-                // Refresh list (await to ensure it completes before alert)
-                await loadCuts(dateFromInput.value || null, dateToInput.value || null);
-                await loadWeeklyAudit();
+                // Refresh all views respecting filters
+                await refreshActiveViews();
 
                 alert('Corte eliminado correctamente.');
 
@@ -1038,6 +1147,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load current week on init
     loadWeeklyAudit();
+
+    // ============ Discrepancy Filter Buttons ============
+    function setDiscrepancyFilter(type, view) {
+        discrepancyFilterType = type;
+
+        // Update button states for daily view
+        const dailyBtns = {
+            global: document.getElementById('daily-diff-global'),
+            cash: document.getElementById('daily-diff-cash'),
+            voucher: document.getElementById('daily-diff-voucher')
+        };
+
+        // Update button states for weekly view
+        const weeklyBtns = {
+            global: document.getElementById('weekly-diff-global'),
+            cash: document.getElementById('weekly-diff-cash'),
+            voucher: document.getElementById('weekly-diff-voucher')
+        };
+
+        // Update all buttons
+        ['global', 'cash', 'voucher'].forEach(t => {
+            if (dailyBtns[t]) {
+                dailyBtns[t].classList.toggle('btn-primary', t === type);
+                dailyBtns[t].classList.toggle('btn-secondary', t !== type);
+            }
+            if (weeklyBtns[t]) {
+                weeklyBtns[t].classList.toggle('btn-primary', t === type);
+                weeklyBtns[t].classList.toggle('btn-secondary', t !== type);
+            }
+        });
+
+        // Refresh both views
+        loadCuts(dateFromInput.value || null, dateToInput.value || null);
+        loadWeeklyAudit();
+    }
+
+    // Daily view filter buttons
+    document.getElementById('daily-diff-global')?.addEventListener('click', () => setDiscrepancyFilter('global', 'daily'));
+    document.getElementById('daily-diff-cash')?.addEventListener('click', () => setDiscrepancyFilter('cash', 'daily'));
+    document.getElementById('daily-diff-voucher')?.addEventListener('click', () => setDiscrepancyFilter('voucher', 'daily'));
+
+    // Weekly view filter buttons
+    document.getElementById('weekly-diff-global')?.addEventListener('click', () => setDiscrepancyFilter('global', 'weekly'));
+    document.getElementById('weekly-diff-cash')?.addEventListener('click', () => setDiscrepancyFilter('cash', 'weekly'));
+    document.getElementById('weekly-diff-voucher')?.addEventListener('click', () => setDiscrepancyFilter('voucher', 'weekly'));
 
     // Password Change Handlers
     function openPasswordModal() {
@@ -1181,8 +1335,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 adminExpenseDescription.value = '';
                 adminExpenseAmount.value = '';
 
-                // Reload weekly data if on same week
-                await loadWeeklyAudit();
+                // Reload All Views (respecting filters)
+                await refreshActiveViews();
 
             } catch (error) {
                 console.error('Error saving expense:', error);
@@ -1260,10 +1414,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('modal-add-description').value = '';
                 document.getElementById('modal-add-amount').value = '';
 
-                // Refresh expenses list in modal
-                if (selectedCut) {
-                    openModal(selectedCut);
-                }
+                // Refresh ONLY the expenses list (not the whole modal, to preserve admin inputs)
+                await refreshModalExpenses();
+
+                // Refresh background tables (Daily/Weekly) respecting filters
+                // This ensures "Gastos" column updates in the main table without page reload
+                refreshActiveViews().catch(err => console.error('Background refresh error:', err));
 
             } catch (error) {
                 console.error('Error adding modal expense:', error);
