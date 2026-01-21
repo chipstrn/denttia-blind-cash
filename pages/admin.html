@@ -162,63 +162,70 @@
 
 
 
-                    <!-- Admin Add Expense Section -->
-                    <div class="section"
-                        style="background: var(--bg-primary); padding: var(--space-4); border-radius: var(--radius-lg); margin-bottom: var(--space-6);">
-                        <h3 class="section-title" style="margin-bottom: var(--space-4);">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            Agregar Gasto (Admin)
-                        </h3>
-                        <div class="expense-form-row">
-                            <div class="form-group" style="flex: 2; min-width: 150px;">
-                                <label class="form-label" for="admin-expense-category">Categoría</label>
-                                <select id="admin-expense-category" class="form-input">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="renta">🏠 Renta</option>
-                                    <option value="material">🦷 Material Dental</option>
-                                    <option value="insumos">📦 Insumos</option>
-                                    <option value="nomina">💼 Nómina</option>
-                                    <option value="comisiones">💰 Comisiones</option>
-                                    <option value="servicios">⚡ Servicios (luz, agua, internet)</option>
-                                    <option value="mantenimiento">🔧 Mantenimiento</option>
-                                    <option value="otros">📋 Otros</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="flex: 1; min-width: 120px;">
-                                <label class="form-label" for="admin-expense-method">Método</label>
-                                <select id="admin-expense-method" class="form-input">
-                                    <option value="efectivo">💵 Efectivo</option>
-                                    <option value="transferencia">🏦 Transferencia</option>
-                                    <option value="tarjeta">💳 Tarjeta</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="expense-form-row">
-                            <div class="form-group" style="flex: 2; min-width: 150px;">
-                                <label class="form-label" for="admin-expense-description">Descripción</label>
-                                <input type="text" id="admin-expense-description" class="form-input"
-                                    placeholder="Ej: Pago de luz de enero" maxlength="200">
-                            </div>
-                            <div class="form-group" style="flex: 1; min-width: 100px;">
-                                <label class="form-label" for="admin-expense-amount">Monto</label>
-                                <input type="number" id="admin-expense-amount" class="form-input" placeholder="0.00"
-                                    step="0.01" min="0" inputmode="decimal">
-                            </div>
-                            <button type="button" id="admin-add-expense-btn" class="btn btn-primary"
-                                style="align-self: flex-end; min-height: 44px;">
+                    <!-- Admin Add Expense Section (COLLAPSIBLE) -->
+                    <div class="collapsible-section" data-section="admin-expense">
+                        <div class="collapsible-header" onclick="toggleSection('admin-expense')">
+                            <h3 class="section-title">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
-                                Guardar Gasto
-                            </button>
+                                Agregar Gasto (Admin)
+                            </h3>
+                            <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
                         </div>
-                        <p id="admin-expense-message" class="text-success hidden mt-4 text-center"></p>
+                        <div class="collapsible-content">
+                            <div class="expense-form-row">
+                                <div class="form-group" style="flex: 2; min-width: 150px;">
+                                    <label class="form-label" for="admin-expense-category">Categoría</label>
+                                    <select id="admin-expense-category" class="form-input">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="renta">🏠 Renta</option>
+                                        <option value="material">🦷 Material Dental</option>
+                                        <option value="insumos">📦 Insumos</option>
+                                        <option value="nomina">💼 Nómina</option>
+                                        <option value="comisiones">💰 Comisiones</option>
+                                        <option value="servicios">⚡ Servicios (luz, agua, internet)</option>
+                                        <option value="mantenimiento">🔧 Mantenimiento</option>
+                                        <option value="otros">📋 Otros</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 120px;">
+                                    <label class="form-label" for="admin-expense-method">Método</label>
+                                    <select id="admin-expense-method" class="form-input">
+                                        <option value="efectivo">💵 Efectivo</option>
+                                        <option value="transferencia">🏦 Transferencia</option>
+                                        <option value="tarjeta">💳 Tarjeta</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="expense-form-row">
+                                <div class="form-group" style="flex: 2; min-width: 150px;">
+                                    <label class="form-label" for="admin-expense-description">Descripción</label>
+                                    <input type="text" id="admin-expense-description" class="form-input"
+                                        placeholder="Ej: Pago de luz de enero" maxlength="200">
+                                </div>
+                                <div class="form-group" style="flex: 1; min-width: 100px;">
+                                    <label class="form-label" for="admin-expense-amount">Monto</label>
+                                    <input type="number" id="admin-expense-amount" class="form-input" placeholder="0.00"
+                                        step="0.01" min="0" inputmode="decimal">
+                                </div>
+                                <button type="button" id="admin-add-expense-btn" class="btn btn-primary"
+                                    style="align-self: flex-end; min-height: 44px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Guardar Gasto
+                                </button>
+                            </div>
+                            <p id="admin-expense-message" class="text-success hidden mt-4 text-center"></p>
+                        </div>
                     </div>
 
                     <!-- Week Summary Cards -->
