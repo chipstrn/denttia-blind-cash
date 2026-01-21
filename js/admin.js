@@ -399,8 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: expenses, error } = await window.supabaseClient
                 .from('expenses')
                 .select('*')
-                .gte('created_at', dayStart)
-                .lte('created_at', dayEnd)
+                .eq('valid_date', cutDateStr)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
@@ -1326,6 +1325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .from('expenses')
                     .insert({
                         created_at: expenseDate.toISOString(),
+                        valid_date: expenseDate.toISOString().split('T')[0], // Store business date
                         user_id: user.id,
                         user_name: userName,
                         category: category,
@@ -1405,6 +1405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .from('expenses')
                     .insert({
                         created_at: expenseDate,
+                        valid_date: window.currentCutDate, // Use the Cut's date
                         user_id: user.id,
                         user_name: userName,
                         category: category,

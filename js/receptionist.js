@@ -256,7 +256,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     payment_method: exp.payment_method,
                     description: exp.description,
                     amount: exp.amount,
-                    created_at: timestamp
+                    created_at: timestamp,
+                    valid_date: selectedDate
                 }));
 
                 const { error: expenseError } = await window.supabaseClient
