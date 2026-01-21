@@ -984,7 +984,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Auto-load when week selection changes
-    weekSelect.addEventListener('change', loadWeeklyAudit);
+    weekSelect.addEventListener('change', () => {
+        // Clear custom date inputs when using week selector
+        if (auditDateFrom) auditDateFrom.value = '';
+        if (auditDateTo) auditDateTo.value = '';
+        loadWeeklyAudit();
+    });
 
     // Load current week on init
     loadWeeklyAudit();
