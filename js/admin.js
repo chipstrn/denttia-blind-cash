@@ -669,13 +669,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            // Load expenses
+            // Load expenses - Filter by valid_date (business date) same as cuts
             const { data: expenseData, error: expenseError } = await window.supabaseClient
                 .from('expenses')
                 .select('*')
-                .gte('created_at', start + 'T00:00:00')
-                .lte('created_at', end + 'T23:59:59')
-                .order('created_at', { ascending: false });
+                .gte('valid_date', start)
+                .lte('valid_date', end)
+                .order('valid_date', { ascending: true });
 
             if (expenseError) throw expenseError;
 
