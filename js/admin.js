@@ -262,7 +262,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ============ Daily View Functions ============
     function renderTableRow(cut) {
-        const adjustmentsTotal = calculateAdjustmentsTotal(cut.adjustments);
+        // Calculate total expenses for this cut (based on valid_date)
+        const expensesTotal = cut.expensesTotal || 0;
 
         // Calculate expected and difference using split amounts
         const cashCounted = parseFloat(cut.cash_counted) || 0;
@@ -275,13 +276,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let displayDiff = null;
 
         if (discrepancyFilterType === 'cash') {
-            // Cash only
+            // Cash only: Diff = (Cash + Expenses) - Expected
             if (expectedCash !== null) {
                 displayExpected = expectedCash;
-                displayDiff = cashCounted - expectedCash;
+                displayDiff = (cashCounted + expensesTotal) - expectedCash;
             }
         } else if (discrepancyFilterType === 'voucher') {
-            // Voucher only
+            // Voucher only: Diff = Voucher - Expected (Expenses don't affect vouchers)
             if (expectedVoucher !== null) {
                 displayExpected = expectedVoucher;
                 displayDiff = voucherCounted - expectedVoucher;
@@ -290,7 +291,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Global (both)
             if (expectedCash !== null || expectedVoucher !== null) {
                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
-                const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+
+                const cashDiff = expectedCash !== null ? (cashCounted + expensesTotal) - expectedCash : 0;
                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                 displayDiff = cashDiff + voucherDiff;
             }
@@ -304,7 +306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td data-label="Fecha">${formatDate(cut.created_at)}</td>
                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                 <td data-label="Contado" class="text-right number-formatted">${formatCurrency(cut.total_counted)}</td>
-                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(adjustmentsTotal)}</td>
+                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(expensesTotal)}</td>
                 <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
                 <td data-label="Diferencia" class="text-right number-formatted">
                     ${displayDiff !== null ? `
@@ -325,17 +327,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         cutsTableBody.innerHTML = '';
 
         try {
-            let query = window.supabaseClient
+            // Fetch cuts
+            let cutsQuery = window.supabaseClient
                 .from('blind_cuts')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (dateFrom) query = query.gte('valid_date', dateFrom);
-            if (dateTo) query = query.lte('valid_date', dateTo);
+            if (dateFrom) cutsQuery = cutsQuery.gte('valid_date', dateFrom);
+            if (dateTo) cutsQuery = cutsQuery.lte('valid_date', dateTo);
 
-            const { data, error } = await query;
-            if (error) throw error;
-            cuts = data || [];
+            // Fetch expenses to map them
+            let expensesQuery = window.supabaseClient
+                .from('expenses')
+                .select('*');
+
+            if (dateFrom) expensesQuery = expensesQuery.gte('valid_date', dateFrom);
+            if (dateTo) expensesQuery = expensesQuery.lte('valid_date', dateTo);
+
+            const [cutsResult, expensesResult] = await Promise.all([cutsQuery, expensesQuery]);
+
+            if (cutsResult.error) throw cutsResult.error;
+            if (expensesResult.error) throw expensesResult.error;
+
+            cuts = cutsResult.data || [];
+            const expenses = expensesResult.data || [];
+
+            // Map expenses to cuts by valid_date
+            cuts = cuts.map(cut => {
+                const cutDate = cut.valid_date;
+                const cutExpenses = expenses.filter(e => e.valid_date === cutDate);
+                const expensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                return { ...cut, expensesTotal };
+            });
 
             if (cuts.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -424,17 +447,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
                 modalTotalExpenses.textContent = formatCurrency(total);
                 modalExpensesTotal.classList.remove('hidden');
+
+                // Store for difference calculation
+                selectedCut.currentExpensesTotal = total;
             } else {
                 modalExpensesList.innerHTML = '<p class="text-muted text-center">Sin gastos registrados este día</p>';
                 modalExpensesTotal.classList.add('hidden');
+                selectedCut.currentExpensesTotal = 0;
             }
+            // Update difference with new expense total
+            updateDifferenceDisplay();
+
         } catch (error) {
             console.error('Error fetching expenses:', error);
             modalExpensesList.innerHTML = '<p class="text-muted text-center">Error al cargar gastos</p>';
             modalExpensesTotal.classList.add('hidden');
         }
-
-        modalBackdrop.classList.add('active');
     }
 
     function closeModal() {
@@ -452,15 +480,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!modalExpensesList) return;
 
-        const dayStart = window.currentCutDate + 'T00:00:00';
-        const dayEnd = window.currentCutDate + 'T23:59:59';
+        // Use valid_date filtering logic, same as openModal
+        const cutDateStr = window.currentCutDate;
 
         try {
             const { data: expenses, error } = await window.supabaseClient
                 .from('expenses')
                 .select('*')
-                .gte('created_at', dayStart)
-                .lte('created_at', dayEnd)
+                .eq('valid_date', cutDateStr) // Consistent filtering
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
@@ -483,9 +510,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
                 if (modalTotalExpenses) modalTotalExpenses.textContent = formatCurrency(total);
                 if (modalExpensesTotal) modalExpensesTotal.classList.remove('hidden');
+
+                // Update total in selectedCut and refresh difference
+                if (selectedCut) {
+                    selectedCut.currentExpensesTotal = total;
+                    updateDifferenceDisplay();
+                }
             } else {
                 modalExpensesList.innerHTML = '<p class="text-muted text-center">Sin gastos registrados este día</p>';
                 if (modalExpensesTotal) modalExpensesTotal.classList.add('hidden');
+                if (selectedCut) {
+                    selectedCut.currentExpensesTotal = 0;
+                    updateDifferenceDisplay();
+                }
             }
         } catch (error) {
             console.error('Error refreshing expenses:', error);
@@ -499,6 +536,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const expectedVoucher = parseFloat(expectedVoucherInput.value);
         const cashCounted = parseFloat(selectedCut.cash_counted) || 0;
         const voucherCounted = parseFloat(selectedCut.voucher_counted) || 0;
+        const expensesTotal = selectedCut.currentExpensesTotal || 0;
 
         // Check if at least one expected value is entered
         const hasCashExpected = !isNaN(expectedCash);
@@ -512,19 +550,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         let html = '';
         let totalDiff = 0;
 
-        // Cash difference
+        // Cash difference: (Cash + Expenses) - Expected
         if (hasCashExpected) {
-            const cashDiff = cashCounted - expectedCash;
+            const cashDiff = (cashCounted + expensesTotal) - expectedCash;
             totalDiff += cashDiff;
             const cashClass = cashDiff === 0 ? 'exact' : (cashDiff > 0 ? 'over' : 'under');
             const cashLabel = cashDiff === 0 ? 'Exacto' : (cashDiff > 0 ? 'Sobrante' : 'Faltante');
             html += `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--text-secondary);">💵 Efectivo:</span>
-                    <span class="traffic-light ${cashClass}" style="font-size: 0.9rem;">
-                        <span class="traffic-light-icon"></span>
-                        ${cashLabel}: ${formatCurrency(Math.abs(cashDiff))}
-                    </span>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">(${formatCurrency(cashCounted)} + ${formatCurrency(expensesTotal)} gastos)</div>
+                        <span class="traffic-light ${cashClass}" style="font-size: 0.9rem;">
+                            <span class="traffic-light-icon"></span>
+                            ${cashLabel}: ${formatCurrency(Math.abs(cashDiff))}
+                        </span>
+                    </div>
                 </div>
             `;
         }
@@ -655,20 +696,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cuts = incomeData || [];
             const totalIncome = cuts.reduce((sum, cut) => sum + parseFloat(cut.total_counted || 0), 0);
 
-            // Calculate total differences (using split expected amounts)
-            let totalDifference = 0;
-            cuts.forEach(cut => {
-                const hasCashExpected = cut.expected_cash !== null && cut.expected_cash !== undefined;
-                const hasVoucherExpected = cut.expected_voucher !== null && cut.expected_voucher !== undefined;
-                if (hasCashExpected) {
-                    totalDifference += parseFloat(cut.cash_counted || 0) - parseFloat(cut.expected_cash || 0);
-                }
-                if (hasVoucherExpected) {
-                    totalDifference += parseFloat(cut.voucher_counted || 0) - parseFloat(cut.expected_voucher || 0);
-                }
-            });
-
-            // Load expenses - Filter by valid_date (business date) same as cuts
+            // First load expenses for the entire period to be efficient
             const { data: expenseData, error: expenseError } = await window.supabaseClient
                 .from('expenses')
                 .select('*')
@@ -677,8 +705,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .order('valid_date', { ascending: true });
 
             if (expenseError) throw expenseError;
-
             const expenses = expenseData || [];
+
+            // Calculate total differences (using split expected amounts + expenses)
+            let totalDifference = 0;
+            cuts.forEach(cut => {
+                // Find expenses for this cut
+                const cutExpenses = expenses.filter(e => e.valid_date === cut.valid_date);
+                const cutExpensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                cut.expensesTotal = cutExpensesTotal; // Store for table render
+
+                const hasCashExpected = cut.expected_cash !== null && cut.expected_cash !== undefined;
+                const hasVoucherExpected = cut.expected_voucher !== null && cut.expected_voucher !== undefined;
+
+                if (hasCashExpected) {
+                    // Diff = (Cash + Expenses) - Expected
+                    totalDifference += (parseFloat(cut.cash_counted || 0) + cutExpensesTotal) - parseFloat(cut.expected_cash || 0);
+                }
+                if (hasVoucherExpected) {
+                    totalDifference += parseFloat(cut.voucher_counted || 0) - parseFloat(cut.expected_voucher || 0);
+                }
+            });
+
             const totalExpensesAmount = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
 
             // Update summary cards
@@ -704,6 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const counted = parseFloat(cut.total_counted || 0);
                         const cashCounted = parseFloat(cut.cash_counted || 0);
                         const voucherCounted = parseFloat(cut.voucher_counted || 0);
+                        const expensesTotal = cut.expensesTotal || 0; // Pre-calculated above
                         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
                         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
@@ -712,13 +761,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         let diff = null;
 
                         if (discrepancyFilterType === 'cash') {
-                            // Cash only
+                            // Cash only: Diff = (Cash + Expenses) - Expected
                             if (expectedCash !== null) {
                                 displayExpected = expectedCash;
-                                diff = cashCounted - expectedCash;
+                                diff = (cashCounted + expensesTotal) - expectedCash;
                             }
                         } else if (discrepancyFilterType === 'voucher') {
-                            // Voucher only
+                            // Voucher only: Diff = Voucher - Expected
                             if (expectedVoucher !== null) {
                                 displayExpected = expectedVoucher;
                                 diff = voucherCounted - expectedVoucher;
@@ -727,7 +776,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             // Global (both)
                             if (expectedCash !== null || expectedVoucher !== null) {
                                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
-                                const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+                                const cashDiff = expectedCash !== null ? (cashCounted + expensesTotal) - expectedCash : 0;
                                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                                 diff = cashDiff + voucherDiff;
                             }
@@ -742,6 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <td data-label="Fecha">${formatDateShort(cut.created_at)}</td>
                                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                                 <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(counted)}</td>
+                                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(expensesTotal)}</td>
                                 <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${diff !== null ? (diff >= 0 ? '+' : '') + formatCurrency(diff) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Estado">${statusBadge}</td>
@@ -1264,6 +1314,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Admin Add Expense Handler
     if (adminAddExpenseBtn) {
         adminAddExpenseBtn.addEventListener('click', async () => {
+            const dateInput = document.getElementById('admin-expense-date');
+
+            // Validate Date
+            if (!dateInput || !dateInput.value) {
+                alert('Por favor selecciona la fecha del corte.');
+                dateInput?.focus();
+                return;
+            }
+
             const category = adminExpenseCategory?.value;
             const method = adminExpenseMethod?.value || 'efectivo';
             const description = adminExpenseDescription?.value?.trim();
@@ -1291,47 +1350,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const user = await window.auth.getUser();
                 const userName = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
 
-                // Determine date based on CURRENTLY ACTIVE FILTER
-                let expenseDate = new Date();
-                const customStart = auditDateFrom?.value;
-                const customEnd = auditDateTo?.value;
-                const weekValue = weekSelect?.value;
+                // Use the explicit date selected by the admin
+                const selectedDateStr = dateInput.value;
+                // Add 12:00 PM to ensure it falls within the day in any timezone calculation
+                const expenseDate = new Date(selectedDateStr + 'T12:00:00');
 
-                let targetStart, targetEnd;
-
-                if (customStart && customEnd) {
-                    // Priority 1: Custom Date Range
-                    targetStart = new Date(customStart + 'T00:00:00');
-                    targetEnd = new Date(customEnd + 'T23:59:59');
-                } else if (weekValue) {
-                    // Priority 2: Selected Week
-                    const { startDate, endDate } = getWeekDates(weekValue);
-                    targetStart = new Date(startDate); targetStart.setHours(0, 0, 0, 0);
-                    targetEnd = new Date(endDate); targetEnd.setHours(23, 59, 59, 999);
-                }
-
-                if (targetStart && targetEnd) {
-                    const now = new Date();
-                    if (now >= targetStart && now <= targetEnd) {
-                        expenseDate = now; // Use current time if within range
-                    } else {
-                        // Default to end of range (e.g. Sunday) but at NOON (12:00) to avoid timezone/date boundary issues
-                        expenseDate = new Date(targetEnd);
-                        expenseDate.setHours(12, 0, 0, 0);
-                    }
-                }
-
+                // Insert into Supabase
                 const { error } = await window.supabaseClient
                     .from('expenses')
                     .insert({
                         created_at: expenseDate.toISOString(),
-                        valid_date: expenseDate.toISOString().split('T')[0], // Store business date
+                        valid_date: selectedDateStr, // Store business date directly
                         user_id: user.id,
                         user_name: userName,
                         category: category,
-                        payment_method: method,
                         description: description,
-                        amount: amount
+                        amount: amount,
+                        payment_method: method
                     });
 
                 if (error) throw error;
