@@ -723,7 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success
                 closeEditExpenseModal();
-                loadWeeklyAudit(); // Refresh data
+                await loadWeeklyAudit(); // Refresh data
 
             } catch (error) {
                 console.error('Error updating expense:', error);
@@ -756,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success
                 closeEditExpenseModal();
-                loadWeeklyAudit(); // Refresh data
+                await loadWeeklyAudit(); // Refresh data
 
             } catch (error) {
                 console.error('Error deleting expense:', error);
@@ -834,12 +834,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (error) throw error;
 
-                alert('Corte eliminado correctamente.');
+                // Close modal first
                 closeModal();
 
-                // Refresh list
-                loadCuts(dateFromInput.value || null, dateToInput.value || null);
-                loadWeeklyAudit(); // Refresh audit if needed
+                // Refresh list (await to ensure it completes before alert)
+                await loadCuts(dateFromInput.value || null, dateToInput.value || null);
+                await loadWeeklyAudit();
+
+                alert('Corte eliminado correctamente.');
 
             } catch (error) {
                 console.error('Error deleting cut:', error);
@@ -1025,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 adminExpenseAmount.value = '';
 
                 // Reload weekly data if on same week
-                loadWeeklyAudit();
+                await loadWeeklyAudit();
 
             } catch (error) {
                 console.error('Error saving expense:', error);
