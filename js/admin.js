@@ -53,12 +53,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalDate = document.getElementById('modal-date');
     const modalUser = document.getElementById('modal-user');
     const modalTotalCounted = document.getElementById('modal-total-counted');
-    const expectedInput = document.getElementById('expected-amount');
+    const expectedCashInput = document.getElementById('expected-cash');
+    const expectedVoucherInput = document.getElementById('expected-voucher');
     const differenceDisplay = document.getElementById('difference-display');
     const statusSelect = document.getElementById('status-select');
     const notesInput = document.getElementById('reviewer-notes');
     const saveReviewBtn = document.getElementById('save-review-btn');
     const deleteCutBtn = document.getElementById('delete-cut-btn');
+
+    // Audit Date Filter Elements
+    const auditDateFrom = document.getElementById('audit-date-from');
+    const auditDateTo = document.getElementById('audit-date-to');
+    const auditFilterBtn = document.getElementById('audit-filter-btn');
 
     // Password Modal Elements
     const changePasswordBtn = document.getElementById('change-password-btn');
@@ -326,7 +332,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (modalCashCounted) modalCashCounted.textContent = formatCurrency(cut.cash_counted || 0);
         if (modalVoucherCounted) modalVoucherCounted.textContent = formatCurrency(cut.voucher_counted || 0);
 
-        expectedInput.value = cut.system_expected || '';
+        // Populate split expected inputs
+        expectedCashInput.value = cut.expected_cash || '';
+        expectedVoucherInput.value = cut.expected_voucher || '';
         statusSelect.value = cut.status || 'pending';
         notesInput.value = cut.reviewer_notes || '';
         updateDifferenceDisplay();
@@ -400,26 +408,81 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateDifferenceDisplay() {
         if (!selectedCut) return;
-        const expected = parseFloat(expectedInput.value);
 
-        if (isNaN(expected)) {
-            differenceDisplay.innerHTML = '<span class="text-muted">Ingresa el monto esperado</span>';
+        const expectedCash = parseFloat(expectedCashInput.value);
+        const expectedVoucher = parseFloat(expectedVoucherInput.value);
+        const cashCounted = parseFloat(selectedCut.cash_counted) || 0;
+        const voucherCounted = parseFloat(selectedCut.voucher_counted) || 0;
+
+        // Check if at least one expected value is entered
+        const hasCashExpected = !isNaN(expectedCash);
+        const hasVoucherExpected = !isNaN(expectedVoucher);
+
+        if (!hasCashExpected && !hasVoucherExpected) {
+            differenceDisplay.innerHTML = '<span class="text-muted">Ingresa los montos esperados</span>';
             return;
         }
 
-        const diff = calculateDifference(selectedCut.total_counted, selectedCut.adjustments, expected);
-        differenceDisplay.innerHTML = `
-            <span class="traffic-light ${diff.class}">
-                <span class="traffic-light-icon"></span>
-                ${diff.label}: ${formatCurrency(Math.abs(diff.difference))}
-            </span>
-        `;
+        let html = '';
+        let totalDiff = 0;
+
+        // Cash difference
+        if (hasCashExpected) {
+            const cashDiff = cashCounted - expectedCash;
+            totalDiff += cashDiff;
+            const cashClass = cashDiff === 0 ? 'exact' : (cashDiff > 0 ? 'over' : 'under');
+            const cashLabel = cashDiff === 0 ? 'Exacto' : (cashDiff > 0 ? 'Sobrante' : 'Faltante');
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">💵 Efectivo:</span>
+                    <span class="traffic-light ${cashClass}" style="font-size: 0.9rem;">
+                        <span class="traffic-light-icon"></span>
+                        ${cashLabel}: ${formatCurrency(Math.abs(cashDiff))}
+                    </span>
+                </div>
+            `;
+        }
+
+        // Voucher difference
+        if (hasVoucherExpected) {
+            const voucherDiff = voucherCounted - expectedVoucher;
+            totalDiff += voucherDiff;
+            const voucherClass = voucherDiff === 0 ? 'exact' : (voucherDiff > 0 ? 'over' : 'under');
+            const voucherLabel = voucherDiff === 0 ? 'Exacto' : (voucherDiff > 0 ? 'Sobrante' : 'Faltante');
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary);">💳 Vouchers:</span>
+                    <span class="traffic-light ${voucherClass}" style="font-size: 0.9rem;">
+                        <span class="traffic-light-icon"></span>
+                        ${voucherLabel}: ${formatCurrency(Math.abs(voucherDiff))}
+                    </span>
+                </div>
+            `;
+        }
+
+        // Total difference (if both are entered)
+        if (hasCashExpected && hasVoucherExpected) {
+            const totalClass = totalDiff === 0 ? 'exact' : (totalDiff > 0 ? 'over' : 'under');
+            const totalLabel = totalDiff === 0 ? 'Exacto' : (totalDiff > 0 ? 'Sobrante' : 'Faltante');
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-light);">
+                    <span style="font-weight: 600;">📊 Total:</span>
+                    <span class="traffic-light ${totalClass}">
+                        <span class="traffic-light-icon"></span>
+                        ${totalLabel}: ${formatCurrency(Math.abs(totalDiff))}
+                    </span>
+                </div>
+            `;
+        }
+
+        differenceDisplay.innerHTML = html;
     }
 
     async function saveReview() {
         if (!selectedCut) return;
 
-        const expected = parseFloat(expectedInput.value);
+        const expectedCash = parseFloat(expectedCashInput.value);
+        const expectedVoucher = parseFloat(expectedVoucherInput.value);
         const status = statusSelect.value;
         const notes = notesInput.value.trim();
 
@@ -430,7 +493,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { error } = await window.supabaseClient
                 .from('blind_cuts')
                 .update({
-                    system_expected: isNaN(expected) ? null : expected,
+                    expected_cash: isNaN(expectedCash) ? null : expectedCash,
+                    expected_voucher: isNaN(expectedVoucher) ? null : expectedVoucher,
                     status: status,
                     reviewer_notes: notes || null,
                     reviewed_at: new Date().toISOString()
@@ -454,8 +518,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadWeeklyAudit() {
         const weekValue = weekSelect.value;
         if (!weekValue) return;
-
         const { start, end } = getWeekDates(weekValue);
+        await loadWeeklyAuditCore(start, end);
+    }
+
+    async function loadWeeklyAuditCustom(start, end) {
+        await loadWeeklyAuditCore(start, end);
+    }
+
+    async function loadWeeklyAuditCore(start, end) {
         weekExpensesLoading?.classList.remove('hidden');
 
         try {
@@ -472,11 +543,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cuts = incomeData || [];
             const totalIncome = cuts.reduce((sum, cut) => sum + parseFloat(cut.total_counted || 0), 0);
 
-            // Calculate total differences
+            // Calculate total differences (using split expected amounts)
             let totalDifference = 0;
             cuts.forEach(cut => {
-                if (cut.system_expected !== null && cut.system_expected !== undefined) {
-                    totalDifference += parseFloat(cut.total_counted || 0) - parseFloat(cut.system_expected || 0);
+                const hasCashExpected = cut.expected_cash !== null && cut.expected_cash !== undefined;
+                const hasVoucherExpected = cut.expected_voucher !== null && cut.expected_voucher !== undefined;
+                if (hasCashExpected) {
+                    totalDifference += parseFloat(cut.cash_counted || 0) - parseFloat(cut.expected_cash || 0);
+                }
+                if (hasVoucherExpected) {
+                    totalDifference += parseFloat(cut.voucher_counted || 0) - parseFloat(cut.expected_voucher || 0);
                 }
             });
 
@@ -514,8 +590,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (cuts.length > 0) {
                     weekIncomeBody.innerHTML = cuts.map((cut, index) => {
                         const counted = parseFloat(cut.total_counted || 0);
-                        const expected = cut.system_expected !== null ? parseFloat(cut.system_expected) : null;
-                        const diff = expected !== null ? counted - expected : null;
+                        const cashCounted = parseFloat(cut.cash_counted || 0);
+                        const voucherCounted = parseFloat(cut.voucher_counted || 0);
+                        const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
+                        const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
+
+                        // Calculate total expected and difference
+                        let totalExpected = null;
+                        let diff = null;
+                        if (expectedCash !== null || expectedVoucher !== null) {
+                            totalExpected = (expectedCash || 0) + (expectedVoucher || 0);
+                            const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+                            const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
+                            diff = cashDiff + voucherDiff;
+                        }
+
                         const diffClass = diff === null ? '' : diff === 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-warning';
                         const statusBadge = renderStatusBadge(cut.status);
 
@@ -524,14 +613,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <td data-label="Fecha">${formatDateShort(cut.created_at)}</td>
                                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                                 <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(counted)}</td>
-                                <td data-label="Esperado" class="text-right number-formatted">${expected !== null ? formatCurrency(expected) : '<span class="text-muted">—</span>'}</td>
+                                <td data-label="Esperado" class="text-right number-formatted">${totalExpected !== null ? formatCurrency(totalExpected) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${diff !== null ? (diff >= 0 ? '+' : '') + formatCurrency(diff) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Estado">${statusBadge}</td>
                             </tr>
                         `;
                     }).join('');
                 } else {
-                    weekIncomeBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin ingresos esta semana</td></tr>';
+                    weekIncomeBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin ingresos este periodo</td></tr>';
                 }
             }
 
@@ -811,8 +900,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     modalBackdrop.addEventListener('click', (e) => {
         if (e.target === modalBackdrop) closeModal();
     });
-    expectedInput.addEventListener('input', updateDifferenceDisplay);
+    expectedCashInput.addEventListener('input', updateDifferenceDisplay);
+    expectedVoucherInput.addEventListener('input', updateDifferenceDisplay);
     saveReviewBtn.addEventListener('click', saveReview);
+
+    // Audit Date Filter
+    if (auditFilterBtn) {
+        auditFilterBtn.addEventListener('click', () => {
+            const from = auditDateFrom?.value;
+            const to = auditDateTo?.value;
+            if (from && to) {
+                // Clear week selector when using custom dates
+                if (weekSelect) weekSelect.value = '';
+                loadWeeklyAuditCustom(from, to);
+            } else {
+                alert('Por favor selecciona ambas fechas (Desde y Hasta)');
+            }
+        });
+    }
 
     if (deleteCutBtn) {
         deleteCutBtn.addEventListener('click', async () => {
