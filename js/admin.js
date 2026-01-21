@@ -261,8 +261,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ============ Daily View Functions ============
     function renderTableRow(cut) {
-        const diff = calculateDifference(cut.total_counted, cut.adjustments, cut.system_expected);
         const adjustmentsTotal = calculateAdjustmentsTotal(cut.adjustments);
+
+        // Calculate expected and difference using split amounts
+        const cashCounted = parseFloat(cut.cash_counted) || 0;
+        const voucherCounted = parseFloat(cut.voucher_counted) || 0;
+        const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
+        const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
+
+        let totalExpected = null;
+        let diff = null;
+
+        if (expectedCash !== null || expectedVoucher !== null) {
+            totalExpected = (expectedCash || 0) + (expectedVoucher || 0);
+            const cashDiff = expectedCash !== null ? cashCounted - expectedCash : 0;
+            const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
+            diff = cashDiff + voucherDiff;
+        }
+
+        const diffClass = diff === null ? '' : diff === 0 ? 'exact' : (diff > 0 ? 'over' : 'under');
 
         return `
             <tr data-id="${cut.id}">
@@ -270,12 +287,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                 <td data-label="Contado" class="text-right">${formatCurrency(cut.total_counted)}</td>
                 <td data-label="Gastos" class="text-right">${formatCurrency(adjustmentsTotal)}</td>
-                <td data-label="Esperado" class="text-right">${formatCurrency(cut.system_expected)}</td>
+                <td data-label="Esperado" class="text-right">${totalExpected !== null ? formatCurrency(totalExpected) : '<span class="text-muted">—</span>'}</td>
                 <td data-label="Diferencia">
-                    ${diff.difference !== null ? `
-                        <span class="traffic-light ${diff.class}">
+                    ${diff !== null ? `
+                        <span class="traffic-light ${diffClass}">
                             <span class="traffic-light-icon"></span>
-                            ${formatCurrency(Math.abs(diff.difference))}
+                            ${diff >= 0 ? '+' : ''}${formatCurrency(diff)}
                         </span>
                     ` : '<span class="text-muted">—</span>'}
                 </td>
