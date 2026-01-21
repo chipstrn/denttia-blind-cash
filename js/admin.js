@@ -330,8 +330,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (dateFrom) query = query.gte('created_at', dateFrom + 'T00:00:00');
-            if (dateTo) query = query.lte('created_at', dateTo + 'T23:59:59');
+            if (dateFrom) query = query.gte('valid_date', dateFrom);
+            if (dateTo) query = query.lte('valid_date', dateTo);
 
             const { data, error } = await query;
             if (error) throw error;
@@ -382,8 +382,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const modalExpenseDate = document.getElementById('modal-expense-date');
 
         // Set the cut date for expense display and insertion
-        const cutDate = new Date(cut.created_at);
-        const cutDateStr = cutDate.toISOString().split('T')[0];
+        // Prefer valid_date (business date) over created_at (timestamp)
+        const cutDateStr = cut.valid_date || cut.created_at.split('T')[0];
+
         if (modalExpenseDate) {
             modalExpenseDate.textContent = formatDate(cut.created_at);
         }
@@ -646,9 +647,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { data: incomeData, error: incomeError } = await window.supabaseClient
                 .from('blind_cuts')
                 .select('*')
-                .gte('created_at', start + 'T00:00:00')
-                .lte('created_at', end + 'T23:59:59')
-                .order('created_at', { ascending: true });
+                .gte('valid_date', start)
+                .lte('valid_date', end)
+                .order('valid_date', { ascending: true });
 
             if (incomeError) throw incomeError;
 

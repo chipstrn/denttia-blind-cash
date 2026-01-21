@@ -1358,26 +1358,132 @@ select.form-input {
 .table td.text-right {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  padding-right: 1rem;
-  /* Ensure consistent spacing from right edge */
+  padding-right: 2rem;
+  /* Increased padding checks for separation */
 }
 
 /* Ensure Headers and Cells have symmetric padding */
 .table th,
 .table td {
-  padding: 0.75rem 1rem;
-  /* Horizontal symmetry */
+  padding: 1rem 1.5rem;
+  /* More generous vertical padding */
   vertical-align: middle;
 }
+
+/* Column Distribution Weights - Force Symmetry */
+.table th:nth-child(1),
+.table td:nth-child(1) {
+  width: 14%;
+}
+
+/* Fecha */
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  width: 14%;
+}
+
+/* Usuario */
+.table th:nth-child(3),
+.table td:nth-child(3) {
+  width: 12%;
+  text-align: right;
+}
+
+/* Contado */
+.table th:nth-child(4),
+.table td:nth-child(4) {
+  width: 12%;
+  text-align: right;
+}
+
+/* Gastos */
+.table th:nth-child(5),
+.table td:nth-child(5) {
+  width: 14%;
+  text-align: right;
+}
+
+/* Esperado - wider for label */
+.table th:nth-child(6),
+.table td:nth-child(6) {
+  width: 14%;
+  text-align: right;
+}
+
+/* Diferencia - match expected */
+.table th:nth-child(7),
+.table td:nth-child(7) {
+  width: 12%;
+  text-align: center;
+}
+
+/* Estado */
 
 /* Explicitly align numeric headers in Week View if missing class */
 #income-table th:nth-child(n+3),
 #cuts-table th:nth-child(n+3) {
-  text-align: right;
-  padding-right: 1rem;
+  text-align: right !important;
+  padding-right: 2rem;
 }
 
 /* ============ MOBILE COLLAPSIBLE ============ */
+/* Traffic Light Pills (Discrepancy Highlight) */
+.traffic-light {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.traffic-light-icon {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  /* Icon color set by specific variants below */
+}
+
+/* Exact (Green) */
+.traffic-light.exact {
+  background-color: rgba(16, 185, 129, 0.15);
+  /* Green-500 @ 15% */
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.traffic-light.exact .traffic-light-icon {
+  background-color: var(--success);
+}
+
+/* Over (Yellow/Warning) */
+.traffic-light.over {
+  background-color: rgba(245, 158, 11, 0.15);
+  /* Amber-500 @ 15% */
+  color: #b45309;
+  /* Darker amber for text readability */
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.traffic-light.over .traffic-light-icon {
+  background-color: #f59e0b;
+}
+
+/* Under (Red/Danger) */
+.traffic-light.under {
+  background-color: rgba(239, 68, 68, 0.15);
+  /* Red-500 @ 15% */
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.traffic-light.under .traffic-light-icon {
+  background-color: var(--danger);
+}
+
 /* ============ MOBILE OPTIMIZATION ============ */
 @media (max-width: 768px) {
 
