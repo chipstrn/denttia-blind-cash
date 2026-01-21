@@ -126,11 +126,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ============ Helper Functions ============
-    function getWeekNumber(d) {
+    function getISOWeekAndYear(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
         const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return { year: d.getUTCFullYear(), week: week };
     }
 
     function getWeekDates(weekStr) {
@@ -173,8 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         for (let i = 0; i < 12; i++) {
             const d = new Date(today);
             d.setDate(d.getDate() - (i * 7));
-            const year = d.getFullYear();
-            const week = getWeekNumber(d);
+            const { year, week } = getISOWeekAndYear(d);
             const weekStr = `${year}-W${week.toString().padStart(2, '0')}`;
             const label = formatWeekLabel(weekStr);
 
