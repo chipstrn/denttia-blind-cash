@@ -130,6 +130,24 @@
             <!-- Weekly Audit Tab -->
             <div id="weekly-tab" class="tab-content">
                 <div class="card">
+
+                    <!-- Total Cash Module (New) -->
+                    <div class="cash-module-card">
+                        <div class="cash-info">
+                            <h3>💵 Efectivo en Caja (Neto)</h3>
+                            <p class="text-muted">Ingresos Contado - Gastos Efectivo</p>
+                        </div>
+                        <div class="cash-controls">
+                            <select id="cash-month-select">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                        <div id="total-cash-display" class="cash-amount">
+                            <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                        </div>
+
+                    </div>
+
                     <!-- Week Selector + Date Range Filter (matches Daily View) -->
                     <div class="week-selector"
                         style="display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-4);">

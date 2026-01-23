@@ -1484,6 +1484,96 @@ select.form-input {
   background-color: var(--danger);
 }
 
+/* ============ CASH MODULE ============ */
+.cash-module-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-left: 4px solid var(--success);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.cash-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.cash-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.cash-info p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.cash-controls {
+  flex: 0 0 auto;
+}
+
+.cash-controls select {
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  border-color: var(--success);
+  color: var(--success-dark);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+}
+
+.cash-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .cash-module-card {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: var(--space-3);
+  }
+
+  .cash-info {
+    width: 100%;
+    margin-bottom: var(--space-2);
+  }
+
+  .cash-controls {
+    width: 100%;
+    order: 2;
+    /* Move selector below amount if desired, or keep as is. Let's keep loop order */
+  }
+
+  .cash-controls select {
+    width: 100%;
+    padding: var(--space-3);
+    font-size: 1rem;
+  }
+
+  .cash-amount {
+    width: 100%;
+    justify-content: center;
+    font-size: 2rem;
+    margin-top: var(--space-2);
+    order: 1;
+    /* Ensure amount is prominent? No, standard flow is header -> selector -> amount usually. Structure is H3/P -> Select -> Amount div */
+  }
+
+  /* Based on HTML structure: div(Info) -> div(Select) -> div(Amount) */
+}
+
 /* ============ MOBILE OPTIMIZATION ============ */
 @media (max-width: 768px) {
 

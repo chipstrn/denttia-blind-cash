@@ -100,7 +100,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedCut = null;
     let discrepancyFilterType = 'global'; // 'global', 'cash', 'voucher' (Keeping for daily view compatibility if needed)
     let currentViewMode = 'global'; // 'global', 'cash', 'voucher' (New Global Filter)
-    let currentWeeklyData = { cuts: [], expenses: [] }; // Cache for instant switching
 
     // Category and Method Labels
     const categoryLabels = {
@@ -670,7 +669,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Otherwise use the week selector
             await loadWeeklyAudit();
         }
+
+        // Always refresh total cash
+        await loadTotalCash();
     }
+
 
     // ============ Weekly Audit Functions ============
     async function loadWeeklyAudit() {
@@ -682,6 +685,93 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadWeeklyAuditCustom(start, end) {
         await loadWeeklyAuditCore(start, end);
+    }
+
+    // ============ Total Cash Module ============
+    function initCashMonthSelector() {
+        const selector = document.getElementById('cash-month-select');
+        if (!selector) return;
+
+        const now = new Date();
+        const options = [];
+
+        // Generate last 12 months
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const value = d.toISOString().slice(0, 7); // YYYY-MM
+            const label = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            // Capitalize first letter
+            const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+            options.push(`<option value="${value}">${labelCap}</option>`);
+        }
+
+        selector.innerHTML = options.join('');
+
+        // Listen for changes
+        selector.addEventListener('change', () => {
+            loadTotalCash();
+        });
+    }
+
+    async function loadTotalCash() {
+        const totalCashDisplay = document.getElementById('total-cash-display');
+        const selector = document.getElementById('cash-month-select');
+        if (!totalCashDisplay) return;
+
+        try {
+            // Determine Range
+            let start, end;
+
+            if (selector && selector.value) {
+                // Use selected month
+                const [year, month] = selector.value.split('-').map(Number);
+                // Construct UTC dates to avoid timezone shift including next day's data
+                // Month 1-12 from selector. Date.UTC wants 0-11.
+                start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+                end = new Date(Date.UTC(year, month, 0, 23, 59, 59)).toISOString();
+            } else {
+                // Default to current month
+                const now = new Date();
+                start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
+                end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)).toISOString();
+            }
+
+            // 1. Get Cash Income for Period
+            const { data: cuts, error: cutsError } = await window.supabaseClient
+                .from('blind_cuts')
+                .select('cash_counted')
+                .gte('valid_date', start)
+                .lte('valid_date', end);
+
+            if (cutsError) throw cutsError;
+
+            const totalIncomeCash = (cuts || []).reduce((sum, cut) => sum + parseFloat(cut.cash_counted || 0), 0);
+
+            // 2. Get Cash Expenses for Period
+            const { data: expenses, error: expensesError } = await window.supabaseClient
+                .from('expenses')
+                .select('amount')
+                .eq('payment_method', 'efectivo')
+                .gte('valid_date', start)
+                .lte('valid_date', end);
+
+            if (expensesError) throw expensesError;
+
+            const totalExpensesCash = (expenses || []).reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
+            // Net Cash = Cash In - Cash Out
+            const totalCash = totalIncomeCash - totalExpensesCash;
+
+            // Format
+            totalCashDisplay.textContent = formatCurrency(totalCash);
+            totalCashDisplay.style.color = totalCash >= 0 ? 'var(--text-primary)' : 'var(--danger)';
+
+        } catch (error) {
+            console.error('Error loading total cash:', error);
+            totalCashDisplay.textContent = 'Error';
+            totalCashDisplay.style.fontSize = '1rem';
+            totalCashDisplay.style.color = 'var(--danger)';
+        }
     }
 
     async function loadWeeklyAuditCore(start, end) {
@@ -698,27 +788,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (incomeError) throw incomeError;
 
-            // Store data in cache
-            currentWeeklyData = {
-                cuts: incomeData || [],
-                expenses: expenseData || []
-            };
+            const cuts = incomeData || [];
 
-            // Render view using cached data
-            renderWeeklyAudit();
-
-        } catch (error) {
-            console.error('Error loading weekly audit:', error);
-            alert('Error al cargar auditoría semanal.');
-        } finally {
-            weekExpensesLoading?.classList.add('hidden');
-        }
-    }
-
-    function renderWeeklyAudit() {
-        const { cuts, expenses } = currentWeeklyData;
-
-        try {
             // ============ 1. Calculate Totals based on View Mode ============
             const totalIncome = cuts.reduce((sum, cut) => {
                 let val = 0;
@@ -727,6 +798,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 else if (currentViewMode === 'voucher') val = parseFloat(cut.voucher_counted || 0);
                 return sum + val;
             }, 0);
+
+            // First load expenses for the entire period to be efficient
+            const { data: expenseData, error: expenseError } = await window.supabaseClient
+                .from('expenses')
+                .select('*')
+                .gte('valid_date', start)
+                .lte('valid_date', end)
+                .order('valid_date', { ascending: true });
+
+            if (expenseError) throw expenseError;
+            let expenses = expenseData || [];
 
             // Filter expenses list globally if needed (for total calculation)
             // Note: We might still want to see all expenses in the detailed list, 
@@ -820,9 +902,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // Update summary cards
-            weekIncome.textContent = formatCurrency(totalIncome);
-            weekExpenses.textContent = formatCurrency(totalExpensesAmount);
-            weekBalance.textContent = formatCurrency(totalIncome - totalExpensesAmount);
+            // Re-fetch elements to ensure we have the latest DOM references
+            const weekIncomeEl = document.getElementById('week-income');
+            const weekExpensesEl = document.getElementById('week-expenses');
+            const weekBalanceEl = document.getElementById('week-balance');
+
+            if (weekIncomeEl) weekIncomeEl.textContent = formatCurrency(totalIncome);
+            if (weekExpensesEl) weekExpensesEl.textContent = formatCurrency(totalExpensesAmount);
+            if (weekBalanceEl) weekBalanceEl.textContent = formatCurrency(totalIncome - totalExpensesAmount);
 
             // Update differences card
             const weekDifferences = document.getElementById('week-differences');
@@ -1024,8 +1111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
         } catch (error) {
-            console.error('Error rendering weekly audit:', error);
-            // alert('Error al renderizar auditoría.'); // Silent fail or log
+            console.error('Error loading weekly audit:', error);
+            alert('Error al cargar auditoría semanal.');
+        } finally {
+            weekExpensesLoading?.classList.add('hidden');
         }
     }
 
@@ -1305,8 +1394,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadWeeklyAudit();
     });
 
-    // Load current week on init
+    // Load current week and total cash on init
     loadWeeklyAudit();
+    initCashMonthSelector(); // Init selector first
+    loadTotalCash();
 
     // ============ Discrepancy Filter Buttons ============
     function setDiscrepancyFilter(type, view) {
@@ -1371,8 +1462,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Trigger reload of weekly audit to apply filter
-        renderWeeklyAudit();
+        // Trigger reload of weekly audit to apply filter (respecting custom dates)
+        refreshActiveViews();
     }
 
     document.getElementById('view-mode-global')?.addEventListener('click', () => setGlobalViewMode('global'));
