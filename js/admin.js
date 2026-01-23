@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let selectedCut = null;
     let discrepancyFilterType = 'global'; // 'global', 'cash', 'voucher' (Keeping for daily view compatibility if needed)
     let currentViewMode = 'global'; // 'global', 'cash', 'voucher' (New Global Filter)
+    let currentWeeklyData = { cuts: [], expenses: [] }; // Cache for instant switching
 
     // Category and Method Labels
     const categoryLabels = {
@@ -697,8 +698,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (incomeError) throw incomeError;
 
-            const cuts = incomeData || [];
+            // Store data in cache
+            currentWeeklyData = {
+                cuts: incomeData || [],
+                expenses: expenseData || []
+            };
 
+            // Render view using cached data
+            renderWeeklyAudit();
+
+        } catch (error) {
+            console.error('Error loading weekly audit:', error);
+            alert('Error al cargar auditoría semanal.');
+        } finally {
+            weekExpensesLoading?.classList.add('hidden');
+        }
+    }
+
+    function renderWeeklyAudit() {
+        const { cuts, expenses } = currentWeeklyData;
+
+        try {
             // ============ 1. Calculate Totals based on View Mode ============
             const totalIncome = cuts.reduce((sum, cut) => {
                 let val = 0;
@@ -707,17 +727,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 else if (currentViewMode === 'voucher') val = parseFloat(cut.voucher_counted || 0);
                 return sum + val;
             }, 0);
-
-            // First load expenses for the entire period to be efficient
-            const { data: expenseData, error: expenseError } = await window.supabaseClient
-                .from('expenses')
-                .select('*')
-                .gte('valid_date', start)
-                .lte('valid_date', end)
-                .order('valid_date', { ascending: true });
-
-            if (expenseError) throw expenseError;
-            let expenses = expenseData || [];
 
             // Filter expenses list globally if needed (for total calculation)
             // Note: We might still want to see all expenses in the detailed list, 
@@ -1015,10 +1024,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
         } catch (error) {
-            console.error('Error loading weekly audit:', error);
-            alert('Error al cargar auditoría semanal.');
-        } finally {
-            weekExpensesLoading?.classList.add('hidden');
+            console.error('Error rendering weekly audit:', error);
+            // alert('Error al renderizar auditoría.'); // Silent fail or log
         }
     }
 
@@ -1365,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Trigger reload of weekly audit to apply filter
-        loadWeeklyAudit();
+        renderWeeklyAudit();
     }
 
     document.getElementById('view-mode-global')?.addEventListener('click', () => setGlobalViewMode('global'));
