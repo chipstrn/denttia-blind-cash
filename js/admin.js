@@ -98,7 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ============ State ============
     let cuts = [];
     let selectedCut = null;
-    let discrepancyFilterType = 'global'; // 'global', 'cash', 'voucher'
+    let discrepancyFilterType = 'global'; // 'global', 'cash', 'voucher' (Keeping for daily view compatibility if needed)
+    let currentViewMode = 'global'; // 'global', 'cash', 'voucher' (New Global Filter)
 
     // Category and Method Labels
     const categoryLabels = {
@@ -697,7 +698,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (incomeError) throw incomeError;
 
             const cuts = incomeData || [];
-            const totalIncome = cuts.reduce((sum, cut) => sum + parseFloat(cut.total_counted || 0), 0);
+
+            // ============ 1. Calculate Totals based on View Mode ============
+            const totalIncome = cuts.reduce((sum, cut) => {
+                let val = 0;
+                if (currentViewMode === 'global') val = parseFloat(cut.total_counted || 0);
+                else if (currentViewMode === 'cash') val = parseFloat(cut.cash_counted || 0);
+                else if (currentViewMode === 'voucher') val = parseFloat(cut.voucher_counted || 0);
+                return sum + val;
+            }, 0);
 
             // First load expenses for the entire period to be efficient
             const { data: expenseData, error: expenseError } = await window.supabaseClient
@@ -708,29 +717,98 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .order('valid_date', { ascending: true });
 
             if (expenseError) throw expenseError;
-            const expenses = expenseData || [];
+            let expenses = expenseData || [];
+
+            // Filter expenses list globally if needed (for total calculation)
+            // Note: We might still want to see all expenses in the detailed list, 
+            // but for the Summary Cards and Table "Gastos" column, we must filter.
+            const filteredExpensesGlobal = expenses.filter(exp => {
+                if (currentViewMode === 'global') return true;
+                if (currentViewMode === 'cash') return exp.payment_method === 'efectivo';
+                if (currentViewMode === 'voucher') return exp.payment_method !== 'efectivo'; // tarjeta or transferencia
+                return true;
+            });
+
+            const totalExpensesAmount = filteredExpensesGlobal.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
 
             // Calculate total differences (using split expected amounts + expenses)
             let totalDifference = 0;
+
             cuts.forEach(cut => {
-                // Find expenses for this cut
-                const cutExpenses = expenses.filter(e => e.valid_date === cut.valid_date);
-                const cutExpensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                // Find expenses for this cut (match valid_date)
+                // Filter these expenses by mode too for the row calculation
+                const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date);
+
+                const cutExpensesFiltered = cutExpensesAll.filter(exp => {
+                    if (currentViewMode === 'global') return true;
+                    if (currentViewMode === 'cash') return exp.payment_method === 'efectivo';
+                    if (currentViewMode === 'voucher') return exp.payment_method !== 'efectivo';
+                    return true;
+                });
+
+                const cutExpensesTotal = cutExpensesFiltered.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
                 cut.expensesTotal = cutExpensesTotal; // Store for table render
 
-                const hasCashExpected = cut.expected_cash !== null && cut.expected_cash !== undefined;
-                const hasVoucherExpected = cut.expected_voucher !== null && cut.expected_voucher !== undefined;
+                const cashCounted = parseFloat(cut.cash_counted || 0);
+                const voucherCounted = parseFloat(cut.voucher_counted || 0);
+                const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
+                const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-                if (hasCashExpected) {
-                    // Diff = (Cash + Expenses) - Expected
-                    totalDifference += (parseFloat(cut.cash_counted || 0) + cutExpensesTotal) - parseFloat(cut.expected_cash || 0);
-                }
-                if (hasVoucherExpected) {
-                    totalDifference += parseFloat(cut.voucher_counted || 0) - parseFloat(cut.expected_voucher || 0);
+                // Difference Calculation Logic based on View Mode
+                if (currentViewMode === 'global') {
+                    // Global: (Cash + Expenses) - ExpCash  PLUS  Voucher - ExpVoucher
+                    // Or simplified: (TotalIncome + TotalExpenses) - (ExpCash + ExpVoucher) ? 
+                    // No, "Smart Cash" logic applies only to cash.
+
+                    let diff = 0;
+                    if (expectedCash !== null) diff += (cashCounted + cutExpensesTotal) - expectedCash; // Note: cutExpensesTotal here acts as Global expenses? No, expenses are cash.
+                    // WAIT: Expenses are usually Cash. But what about Transfer expenses?
+                    // If I paid via Transfer, it doesn't affect my Cash Counted.
+                    // So we should only add CASH expenses to the Cash reconciliation.
+                    // Review: "Los gastos se registran como efectivo" (Receptionist View).
+                    // Admin can add non-cash expenses.
+                    // FIX: Only add CASH expenses to the Cash Reconciliation, regardless of view mode?
+                    // The requirement is "Filtro para conocer solo efectivo".
+
+                    // Let's stick to the "Cash Difference Formula": (CashCounted + CashExpenses) - ExpectedCash.
+                    // And for Voucher: VoucherCounted - ExpectedVoucher.
+
+                    // If ViewMode is Global, we sum both differences.
+                    // But we must be careful: `cutExpensesTotal` above includes filtered expenses.
+                    // If Global, it includes ALL expenses. We shouldn't add Non-Cash expenses to the Cash equation.
+
+                    // Refined Logic for Difference Calculation:
+                    const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + e.amount, 0);
+                    // Non-cash expenses don't usually act as "Cash Refills" or "Cash Outs" in the drawer sense, 
+                    // unless they are paid FROM the drawer.
+                    // Assumption: "Gastos" in this system are paid FROM the drawer (Efectivo).
+                    // Transfer/Card expenses are likely external and don't affect the drawer count.
+                    // So they shouldn't be added to "Cash Counted" to reconcile.
+
+                    // However, we need to show them in "Gastos Totales".
+
+                    if (expectedCash !== null) {
+                        totalDifference += (cashCounted + cashExpenses) - expectedCash;
+                    }
+                    if (expectedVoucher !== null) {
+                        totalDifference += voucherCounted - expectedVoucher;
+                    }
+
+                } else if (currentViewMode === 'cash') {
+                    // Cash View: (CashCounted + CashExpenses) - ExpectedCash
+                    // The `cutExpensesFiltered` already contains only Cash expenses.
+                    if (expectedCash !== null) {
+                        totalDifference += (cashCounted + cutExpensesTotal) - expectedCash;
+                    }
+                } else if (currentViewMode === 'voucher') {
+                    // Voucher View: VoucherCounted - ExpectedVoucher
+                    // Expenses (non-cash) don't affect this usually.
+                    if (expectedVoucher !== null) {
+                        totalDifference += voucherCounted - expectedVoucher;
+                    }
                 }
             });
-
-            const totalExpensesAmount = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
 
             // Update summary cards
             weekIncome.textContent = formatCurrency(totalIncome);
@@ -752,51 +830,73 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (weekIncomeBody) {
                 if (cuts.length > 0) {
                     weekIncomeBody.innerHTML = cuts.map((cut, index) => {
-                        const counted = parseFloat(cut.total_counted || 0);
+                        // Prepare values for this row based on View Mode
+                        let displayCounted = 0;
+                        let displayExpenses = 0;
+                        let displayExpected = null;
+                        let displayDiff = null;
+
                         const cashCounted = parseFloat(cut.cash_counted || 0);
                         const voucherCounted = parseFloat(cut.voucher_counted || 0);
-                        const expensesTotal = cut.expensesTotal || 0; // Pre-calculated above
                         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
                         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-                        // Calculate total expected and difference based on filter type
-                        let displayExpected = null;
-                        let diff = null;
+                        // Get expenses for this day
+                        const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date);
 
-                        if (discrepancyFilterType === 'cash') {
-                            // Cash only: Diff = (Cash + Expenses) - Expected
-                            if (expectedCash !== null) {
-                                displayExpected = expectedCash;
-                                diff = (cashCounted + expensesTotal) - expectedCash;
-                            }
-                        } else if (discrepancyFilterType === 'voucher') {
-                            // Voucher only: Diff = Voucher - Expected
-                            if (expectedVoucher !== null) {
-                                displayExpected = expectedVoucher;
-                                diff = voucherCounted - expectedVoucher;
-                            }
-                        } else {
-                            // Global (both)
+                        // Calculate specific expenses subsets
+                        const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + e.amount, 0);
+                        const nonCashExpenses = cutExpensesAll.filter(e => e.payment_method !== 'efectivo').reduce((s, e) => s + e.amount, 0);
+
+                        if (currentViewMode === 'global') {
+                            displayCounted = cashCounted + voucherCounted;
+                            displayExpenses = cashExpenses + nonCashExpenses;
+
+                            // Expected
                             if (expectedCash !== null || expectedVoucher !== null) {
                                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
-                                const cashDiff = expectedCash !== null ? (cashCounted + expensesTotal) - expectedCash : 0;
+
+                                // Diff
+                                const cashDiff = expectedCash !== null ? (cashCounted + cashExpenses) - expectedCash : 0;
                                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
-                                diff = cashDiff + voucherDiff;
+                                displayDiff = cashDiff + voucherDiff;
+                            }
+                        } else if (currentViewMode === 'cash') {
+                            displayCounted = cashCounted;
+                            displayExpenses = cashExpenses;
+                            if (expectedCash !== null) {
+                                displayExpected = expectedCash;
+                                displayDiff = (cashCounted + cashExpenses) - expectedCash;
+                            }
+                        } else if (currentViewMode === 'voucher') {
+                            displayCounted = voucherCounted;
+                            displayExpenses = nonCashExpenses; // Should we show non-cash expenses here? Yes, if "Voucher" implies "Bank/Digital".
+                            if (expectedVoucher !== null) {
+                                displayExpected = expectedVoucher;
+                                displayDiff = voucherCounted - expectedVoucher;
                             }
                         }
 
-                        const diffClass = diff === null ? '' : diff === 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-warning';
+                        // Override stored expensesTotal for the UI click handler sake? 
+                        // Actually renderTableRow uses cut.expensesTotal. 
+                        cut.expensesTotal = displayExpenses; // Update locally for consistency if needed, though render logic is separate here.
+
+                        const diffClass = displayDiff === null ? '' : displayDiff === 0 ? 'text-success' : displayDiff < 0 ? 'text-danger' : 'text-warning';
                         const statusBadge = renderStatusBadge(cut.status);
-                        const filterLabel = discrepancyFilterType === 'cash' ? '💵' : discrepancyFilterType === 'voucher' ? '💳' : '';
+
+                        // Icon for Expected
+                        let filterLabel = '';
+                        if (currentViewMode === 'cash') filterLabel = '💵';
+                        else if (currentViewMode === 'voucher') filterLabel = '💳';
 
                         return `
                             <tr class="clickable-row" data-cut-index="${index}" title="Clic para ver detalles">
                                 <td data-label="Fecha">${formatDateShort(cut.created_at)}</td>
                                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
-                                <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(counted)}</td>
-                                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(expensesTotal)}</td>
+                                <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(displayCounted)}</td>
+                                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(displayExpenses)}</td>
                                 <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
-                                <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${diff !== null ? (diff >= 0 ? '+' : '') + formatCurrency(diff) : '<span class="text-muted">—</span>'}</td>
+                                <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${displayDiff !== null ? (displayDiff >= 0 ? '+' : '') + formatCurrency(displayDiff) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Estado">${statusBadge}</td>
                             </tr>
                         `;
@@ -1245,6 +1345,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('weekly-diff-global')?.addEventListener('click', () => setDiscrepancyFilter('global', 'weekly'));
     document.getElementById('weekly-diff-cash')?.addEventListener('click', () => setDiscrepancyFilter('cash', 'weekly'));
     document.getElementById('weekly-diff-voucher')?.addEventListener('click', () => setDiscrepancyFilter('voucher', 'weekly'));
+
+    // ============ Global View Filter Listeners (New) ============
+    function setGlobalViewMode(mode) {
+        currentViewMode = mode;
+
+        // Update button visual states
+        const btns = {
+            global: document.getElementById('view-mode-global'),
+            cash: document.getElementById('view-mode-cash'),
+            voucher: document.getElementById('view-mode-voucher')
+        };
+
+        ['global', 'cash', 'voucher'].forEach(m => {
+            if (btns[m]) {
+                btns[m].classList.toggle('btn-primary', m === mode);
+                btns[m].classList.toggle('btn-secondary', m !== mode);
+            }
+        });
+
+        // Trigger reload of weekly audit to apply filter
+        loadWeeklyAudit();
+    }
+
+    document.getElementById('view-mode-global')?.addEventListener('click', () => setGlobalViewMode('global'));
+    document.getElementById('view-mode-cash')?.addEventListener('click', () => setGlobalViewMode('cash'));
+    document.getElementById('view-mode-voucher')?.addEventListener('click', () => setGlobalViewMode('voucher'));
 
     // Password Change Handlers
     function openPasswordModal() {

@@ -160,7 +160,14 @@
                         </button>
                     </div>
 
-
+                    <!-- Global View Filter (New) -->
+                    <div id="global-view-filter" class="discrepancy-filter"
+                        style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4); align-items: center;">
+                        <span style="color: var(--text-secondary); font-weight: 500;">👁️ Ver:</span>
+                        <button id="view-mode-global" class="btn btn-sm btn-primary">Global</button>
+                        <button id="view-mode-cash" class="btn btn-sm btn-secondary">💵 Efectivo</button>
+                        <button id="view-mode-voucher" class="btn btn-sm btn-secondary">💳 Vouchers</button>
+                    </div>
 
                     <!-- Admin Add Expense Section (COLLAPSIBLE) -->
                     <div class="collapsible-section" data-section="admin-expense">
@@ -259,15 +266,7 @@
                         <div class="collapsible-header" onclick="toggleSection('income')">
                             <h3 class="section-title">
                                 📊 Detalle de Ingresos y Diferencias
-                                <div id="weekly-diff-buttons" class="discrepancy-filter"
-                                    style="display: inline-flex; gap: 5px; margin-left: 15px;">
-                                    <button id="weekly-diff-global" class="btn btn-sm btn-primary"
-                                        onclick="event.stopPropagation()">Global</button>
-                                    <button id="weekly-diff-cash" class="btn btn-sm btn-secondary"
-                                        onclick="event.stopPropagation()">Efectivo</button>
-                                    <button id="weekly-diff-voucher" class="btn btn-sm btn-secondary"
-                                        onclick="event.stopPropagation()">Vouchers</button>
-                                </div>
+
                             </h3>
                             <svg class="collapsible-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2">
