@@ -434,18 +434,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="expense-item" style="padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-secondary); margin-bottom: var(--space-2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">👤 ${exp.user_name || 'Usuario'}</span>
-                            <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
+                            <span class="expense-amount" style="font-weight: 600; color: ${exp.is_global ? 'var(--text-muted)' : 'var(--text-primary)'};">${formatCurrency(exp.amount)}</span>
                         </div>
                         <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span>
+                            ${exp.is_global ? '<span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--primary-light); color: var(--primary);">Global (No suma)</span>' : ''}
                         </div>
                         <div style="font-size: var(--font-size-sm); color: var(--text-muted);">${escapeHtml(exp.description)}</div>
                     </div>
                 `).join('');
 
-                // Calculate and show total
-                const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+                // Calculate and show total (excluding global expenses)
+                const total = expenses.reduce((sum, exp) => sum + (exp.is_global ? 0 : parseFloat(exp.amount)), 0);
                 modalTotalExpenses.textContent = formatCurrency(total);
                 modalExpensesTotal.classList.remove('hidden');
 
@@ -501,17 +502,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="expense-item" style="padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-secondary); margin-bottom: var(--space-2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">👤 ${exp.user_name || 'Usuario'}</span>
-                            <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
+                            <span class="expense-amount" style="font-weight: 600; color: ${exp.is_global ? 'var(--text-muted)' : 'var(--text-primary)'};">${formatCurrency(exp.amount)}</span>
                         </div>
                         <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span>
+                            ${exp.is_global ? '<span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--primary-light); color: var(--primary);">Global (No suma)</span>' : ''}
                         </div>
                         <div style="font-size: var(--font-size-sm); color: var(--text-muted);">${escapeHtml(exp.description)}</div>
                     </div>
                 `).join('');
 
-                const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+                const total = expenses.reduce((sum, exp) => sum + (exp.is_global ? 0 : parseFloat(exp.amount)), 0);
                 if (modalTotalExpenses) modalTotalExpenses.textContent = formatCurrency(total);
                 if (modalExpensesTotal) modalExpensesTotal.classList.remove('hidden');
 
@@ -747,13 +749,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const totalIncomeCash = (cuts || []).reduce((sum, cut) => sum + parseFloat(cut.cash_counted || 0), 0);
 
-            // 2. Get Cash Expenses for Period
+            // 2. Get Cash Expenses for Period (Efectivo OR Global)
             const { data: expenses, error: expensesError } = await window.supabaseClient
                 .from('expenses')
-                .select('amount')
-                .eq('payment_method', 'efectivo')
+                .select('amount, payment_method, is_global')
                 .gte('valid_date', start)
-                .lte('valid_date', end);
+                .lte('valid_date', end)
+                .or('payment_method.eq.efectivo,is_global.eq.true');
 
             if (expensesError) throw expensesError;
 
