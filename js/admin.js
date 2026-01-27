@@ -357,7 +357,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             cuts = cuts.map(cut => {
                 const cutDate = cut.valid_date;
                 const cutExpenses = expenses.filter(e => e.valid_date === cutDate);
-                const expensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                // Exclude General Fund expenses from the Daily View Total (as they come from Accumulated Cash)
+                const expensesTotal = cutExpenses
+                    .filter(e => !e.is_general_fund)
+                    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
                 return { ...cut, expensesTotal };
             });
 
@@ -439,13 +442,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span>
+                            ${exp.is_general_fund ? '<span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning);">Fondo General</span>' : ''}
                         </div>
                         <div style="font-size: var(--font-size-sm); color: var(--text-muted);">${escapeHtml(exp.description)}</div>
                     </div>
                 `).join('');
 
-                // Calculate and show total
-                const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+                // Calculate and show total (Excluding General Fund)
+                const total = expenses
+                    .filter(e => !e.is_general_fund)
+                    .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
                 modalTotalExpenses.textContent = formatCurrency(total);
                 modalExpensesTotal.classList.remove('hidden');
 
