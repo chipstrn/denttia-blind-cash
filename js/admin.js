@@ -356,11 +356,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Map expenses to cuts by valid_date
             cuts = cuts.map(cut => {
                 const cutDate = cut.valid_date;
-                const cutExpenses = expenses.filter(e => e.valid_date === cutDate);
-                // Exclude General Fund expenses from the Daily View Total (as they come from Accumulated Cash)
-                const expensesTotal = cutExpenses
-                    .filter(e => !e.is_general_fund)
-                    .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                const cutExpenses = expenses.filter(e => e.valid_date === cutDate && !e.is_global);
+                const expensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
                 return { ...cut, expensesTotal };
             });
 
@@ -437,26 +434,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="expense-item" style="padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-secondary); margin-bottom: var(--space-2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">👤 ${exp.user_name || 'Usuario'}</span>
-                            <div style="display: flex; gap: var(--space-2);">
-                                <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
-                                <button onclick="toggleGeneralFund('${exp.id}', ${exp.is_general_fund})" class="btn btn-ghost" style="padding: 2px; height: auto;" title="Alternar Fondo General">
-                                    ${exp.is_general_fund ? '🔄' : '📥'}
-                                </button>
-                            </div>
+                            <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
                         </div>
                         <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span>
-                            ${exp.is_general_fund ? '<span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--warning-bg); color: var(--warning);">Fondo General</span>' : ''}
                         </div>
                         <div style="font-size: var(--font-size-sm); color: var(--text-muted);">${escapeHtml(exp.description)}</div>
                     </div>
                 `).join('');
 
-                // Calculate and show total (Excluding General Fund)
-                const total = expenses
-                    .filter(e => !e.is_general_fund)
-                    .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+                // Calculate and show total
+                const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
                 modalTotalExpenses.textContent = formatCurrency(total);
                 modalExpensesTotal.classList.remove('hidden');
 
@@ -607,9 +596,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const totalClass = totalDiff === 0 ? 'exact' : (totalDiff > 0 ? 'over' : 'under');
             const totalLabel = totalDiff === 0 ? 'Exacto' : (totalDiff > 0 ? 'Sobrante' : 'Faltante');
             html += `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light);">
-                    <span style="font-weight: 600; color: var(--text-primary);">Diferencia Total:</span>
-                    <span class="traffic-light ${totalClass}" style="font-weight: 700;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-light);">
+                    <span style="font-weight: 600;">📊 Total:</span>
+                    <span class="traffic-light ${totalClass}">
+                        <span class="traffic-light-icon"></span>
                         ${totalLabel}: ${formatCurrency(Math.abs(totalDiff))}
                     </span>
                 </div>
@@ -618,39 +608,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         differenceDisplay.innerHTML = html;
     }
-
-    // Toggle General Fund Status (New)
-    window.toggleGeneralFund = async (expenseId, currentStatus) => {
-        if (!confirm(`¿${currentStatus ? 'Quitar del' : 'Mover al'} Fondo General?`)) return;
-
-        try {
-            const { error } = await window.supabaseClient
-                .from('expenses')
-                .update({ is_general_fund: !currentStatus })
-                .eq('id', expenseId);
-
-            if (error) throw error;
-
-            // Refresh modal expenses to reflect change
-            await refreshModalExpenses();
-
-            // Refresh daily table row if visible
-            if (selectedCut) {
-                // We need to reload just this row data or the whole table? 
-                // Simple approach: re-fetch cuts to update the table view behind modal
-                // But that might be heavy. Let's just rely on refreshModalExpenses to update the modal totals.
-                // The user will see the table update when they close/refresh.
-                // Actually, we should try to update the cached 'cuts' array and re-render the row if possible, 
-                // but 'cuts' is local.
-                // Let's just re-load the cuts in background or leave it for refresh.
-                loadCuts(dateFromInput.value, dateToInput.value);
-            }
-
-        } catch (error) {
-            console.error('Error toggling general fund:', error);
-            alert('Error al actualizar el estado del gasto.');
-        }
-    };
 
     async function saveReview() {
         if (!selectedCut) return;
@@ -872,7 +829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cuts.forEach(cut => {
                 // Find expenses for this cut (match valid_date)
                 // Filter these expenses by mode too for the row calculation
-                const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date);
+                // EXCLUDE global expenses from daily row calculations
+                const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date && !e.is_global);
 
                 const cutExpensesFiltered = cutExpensesAll.filter(exp => {
                     if (currentViewMode === 'global') return true;
@@ -981,7 +939,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
                         // Get expenses for this day
-                        const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date);
+                        const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date && !e.is_global);
 
                         // Calculate specific expenses subsets
                         const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + e.amount, 0);
@@ -1094,7 +1052,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <tr data-user="${exp.user_name || 'unknown'}" data-expense-index="${index}" class="clickable-row" title="Clic para editar">
                         <td data-label="Fecha">${formatDateShort(exp.created_at)}</td>
                         <td data-label="Usuario" style="font-size: var(--font-size-sm);">${exp.user_name || 'Usuario'}</td>
-                        <td data-label="Categoría">${categoryLabels[exp.category] || exp.category}</td>
+                        <td data-label="Categoría">
+                            ${categoryLabels[exp.category] || exp.category}
+                            ${exp.is_global ? '<span style="font-size: 0.75em; background: var(--primary-light); color: var(--primary); padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Global</span>' : ''}
+                        </td>
                         <td data-label="Método"><span style="padding: 2px 6px; border-radius: var(--radius-sm); font-size: var(--font-size-xs); background: ${exp.payment_method === 'efectivo' ? 'var(--success-light)' : exp.payment_method === 'transferencia' ? 'var(--info-light)' : 'var(--warning-light)'}; color: ${exp.payment_method === 'efectivo' ? 'var(--success)' : exp.payment_method === 'transferencia' ? 'var(--info)' : 'var(--warning)'};">${methodLabels[exp.payment_method] || exp.payment_method}</span></td>
                         <td data-label="Descripción">${escapeHtml(exp.description)}</td>
                         <td data-label="Monto" class="text-right" style="font-weight: 600;">
@@ -1370,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         deleteCutBtn.addEventListener('click', async () => {
             if (!selectedCut) return;
 
-            if (!confirm('¿Estás seguro de que quieres ELIMINAR este corte Permanentemente? Esta acción no se puede rehacer.')) {
+            if (!confirm('¿Estás seguro de que quieres ELIMINAR este corte Permanentemente? Esta acción no se puede deshacer.')) {
                 return;
             }
 
@@ -1597,6 +1558,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const method = adminExpenseMethod?.value || 'efectivo';
             const description = adminExpenseDescription?.value?.trim();
             const amount = parseFloat(adminExpenseAmount?.value);
+            const isGlobal = document.getElementById('admin-expense-global')?.checked || false;
 
             if (!category) {
                 adminExpenseCategory?.focus();
@@ -1636,7 +1598,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         category: category,
                         description: description,
                         amount: amount,
-                        payment_method: method
+                        category: category,
+                        description: description,
+                        amount: amount,
+                        payment_method: method,
+                        is_global: isGlobal
                     });
 
                 if (error) throw error;
@@ -1652,6 +1618,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 adminExpenseCategory.value = '';
                 adminExpenseDescription.value = '';
                 adminExpenseAmount.value = '';
+                const isGlobalInput = document.getElementById('admin-expense-global');
+                if (isGlobalInput) isGlobalInput.checked = false;
 
                 // Reload All Views (respecting filters)
                 await refreshActiveViews();
@@ -1683,9 +1651,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalAddExpenseBtn.addEventListener('click', async () => {
             const category = document.getElementById('modal-add-category')?.value;
             const method = document.getElementById('modal-add-method')?.value || 'efectivo';
-            const description = document.getElementById('modal-add-description').value.trim();
-            const amount = parseFloat(document.getElementById('modal-add-amount').value);
-            const isGeneralFund = document.getElementById('modal-add-general-fund').checked;
+            const description = document.getElementById('modal-add-description')?.value?.trim();
+            const amount = parseFloat(document.getElementById('modal-add-amount')?.value);
             const msgEl = document.getElementById('modal-add-expense-msg');
 
             if (!category || !description || isNaN(amount) || amount <= 0) {
@@ -1717,8 +1684,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         category: category,
                         payment_method: method,
                         description: description,
-                        amount: amount,
-                        is_general_fund: isGeneralFund
+                        amount: amount
                     });
 
                 if (error) throw error;
