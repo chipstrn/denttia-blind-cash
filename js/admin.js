@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <tr data-id="${cut.id}">
             <td data-label="Fecha">${formatDate(cut.created_at)}</td>
             <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
-            <td data-label="Contado" class="text-right number-formatted">${filterLabel} ${formatCurrency(displayCounted)}</td>
+            <td data-label="Contado" class="text-right number-formatted">${formatCurrency(displayCounted)}</td>
             <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(displayExpenses)}</td>
             <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
             <td data-label="Diferencia" class="text-right number-formatted">
@@ -951,52 +951,54 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
                         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-                        // Get expenses for this day
+                        // Get expenses for this day and calculate totals cleanly
                         const cutExpensesAll = expenses.filter(e => e.valid_date === cut.valid_date && !e.is_global);
 
-                        // Calculate specific expenses subsets
-                        const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + e.amount, 0);
-                        const nonCashExpenses = cutExpensesAll.filter(e => e.payment_method !== 'efectivo').reduce((s, e) => s + e.amount, 0);
+                        // Calculate specific expenses subsets (FIX: Add parseFloat)
+                        const allExpensesTotal = cutExpensesAll.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+                        const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+                        const nonCashExpenses = cutExpensesAll.filter(e => e.payment_method !== 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
                         if (currentViewMode === 'global') {
                             displayCounted = cashCounted + voucherCounted;
-                            displayExpenses = cashExpenses + nonCashExpenses;
+                            displayExpenses = allExpensesTotal; // Show ALL expenses in Global View
 
-                            // Expected
                             // Expected
                             if (expectedCash !== null || expectedVoucher !== null) {
                                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
 
-                                // Diff - MATCH MODAL LOGIC
+                                // Diff - MATCH MODAL LOGIC (Daily View)
                                 // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash
-                                const cashDiff = expectedCash !== null ? (cashCounted + displayExpenses) - expectedCash : 0;
+                                const cashDiff = expectedCash !== null ? (cashCounted + allExpensesTotal) - expectedCash : 0;
                                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                                 displayDiff = cashDiff + voucherDiff;
                             }
                         } else if (currentViewMode === 'cash') {
                             displayCounted = cashCounted;
-                            displayExpenses = cashExpenses; // Wait, should this show ALL expenses if logically we are using them? 
-                            // In 'Cash' view, we usually only show Cash expenses. But the DIFF calculation now uses ALL expenses.
-                            // Let's keep displayExpenses as cashExpenses for visual consistency, but fix the DIFF.
+                            // In 'Cash' view, we normally show cash expenses. but for balancing, we need ALL expenses context?
+                            // Actually, let's keep showing cash expenses in the column, but use ALL for the hidden diff calc logic if that's what's required.
+                            // BUT: Daily View renders 'expensesTotal' (ALL) in the column when filter is Global.
+                            // When filter is Cash (Daily View), it renders 'expensesCash' (Line 287).
+                            // AND it uses 'expensesTotal' for Diff (Line 292).
+
+                            displayExpenses = cashExpenses; // Matching Daily View visual
 
                             if (expectedCash !== null) {
                                 displayExpected = expectedCash;
-                                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash
-                                // We use 'expensesTotal' from the cut object which we stored earlier
-                                displayDiff = (cashCounted + cut.expensesTotal) - expectedCash;
+                                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash (Matching Daily View Logic)
+                                displayDiff = (cashCounted + allExpensesTotal) - expectedCash;
                             }
                         } else if (currentViewMode === 'voucher') {
                             displayCounted = voucherCounted;
-                            displayExpenses = nonCashExpenses; // Should we show non-cash expenses here? Yes, if "Voucher" implies "Bank/Digital".
+                            displayExpenses = nonCashExpenses;
                             if (expectedVoucher !== null) {
                                 displayExpected = expectedVoucher;
                                 displayDiff = voucherCounted - expectedVoucher;
                             }
                         }
 
-                        // Override stored expensesTotal for the UI click handler sake? 
-                        // Actually renderTableRow uses cut.expensesTotal. 
-                        cut.expensesTotal = displayExpenses; // Update locally for consistency if needed, though render logic is separate here.
+                        // Update locally for any other usage, using the Correct Total
+                        cut.expensesTotal = allExpensesTotal;
 
                         const diffClass = displayDiff === null ? '' : displayDiff === 0 ? 'text-success' : displayDiff < 0 ? 'text-danger' : 'text-warning';
                         const statusBadge = renderStatusBadge(cut.status);
@@ -1213,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success
                 closeEditExpenseModal();
-                await loadWeeklyAudit(); // Refresh data
+                await refreshActiveViews(); // Refresh data respecting filters
 
             } catch (error) {
                 console.error('Error updating expense:', error);
@@ -1246,7 +1248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Success
                 closeEditExpenseModal();
-                await loadWeeklyAudit(); // Refresh data
+                await refreshActiveViews(); // Refresh data respecting filters
 
             } catch (error) {
                 console.error('Error deleting expense:', error);
