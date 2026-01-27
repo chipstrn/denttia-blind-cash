@@ -263,37 +263,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ============ Daily View Functions ============
     function renderTableRow(cut) {
-        // Calculate total expenses for this cut (based on valid_date)
-        const expensesTotal = cut.expensesTotal || 0;
-
         // Calculate expected and difference using split amounts
         const cashCounted = parseFloat(cut.cash_counted) || 0;
         const voucherCounted = parseFloat(cut.voucher_counted) || 0;
+        const totalCounted = parseFloat(cut.total_counted) || 0;
+
+        const expensesTotal = cut.expensesTotal || 0;
+        const expensesCash = cut.expensesCash || 0;
+        const expensesVoucher = cut.expensesVoucher || 0;
+
         const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
         const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
         // Calculate differences based on filter type
+        let displayCounted = 0;
+        let displayExpenses = 0;
         let displayExpected = null;
         let displayDiff = null;
 
         if (discrepancyFilterType === 'cash') {
-            // Cash only: Diff = (Cash + Expenses) - Expected
+            // Cash only
+            displayCounted = cashCounted;
+            displayExpenses = expensesCash;
             if (expectedCash !== null) {
                 displayExpected = expectedCash;
-                displayDiff = (cashCounted + expensesTotal) - expectedCash;
+                // Cash Diff = (CashCounted + CashExpenses) - ExpectedCash
+                // Note: If non-cash expenses were paid, they normally don't affect Cash Drawer.
+                // Assumption: Expenses recorded as "Efectivo" come from the drawer.
+                displayDiff = (cashCounted + expensesCash) - expectedCash;
             }
         } else if (discrepancyFilterType === 'voucher') {
-            // Voucher only: Diff = Voucher - Expected (Expenses don't affect vouchers)
+            // Voucher only
+            displayCounted = voucherCounted;
+            displayExpenses = expensesVoucher; // Typically 0 or irrelevant for balancing
             if (expectedVoucher !== null) {
                 displayExpected = expectedVoucher;
                 displayDiff = voucherCounted - expectedVoucher;
             }
         } else {
             // Global (both)
+            displayCounted = totalCounted;
+            displayExpenses = expensesTotal;
             if (expectedCash !== null || expectedVoucher !== null) {
                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
 
-                const cashDiff = expectedCash !== null ? (cashCounted + expensesTotal) - expectedCash : 0;
+                const cashDiff = expectedCash !== null ? (cashCounted + expensesCash) - expectedCash : 0;
                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                 displayDiff = cashDiff + voucherDiff;
             }
@@ -303,25 +317,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const filterLabel = discrepancyFilterType === 'cash' ? '💵' : discrepancyFilterType === 'voucher' ? '💳' : '';
 
         return `
-            <tr data-id="${cut.id}">
-                <td data-label="Fecha">${formatDate(cut.created_at)}</td>
-                <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
-                <td data-label="Contado" class="text-right number-formatted">${formatCurrency(cut.total_counted)}</td>
-                <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(expensesTotal)}</td>
-                <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
-                <td data-label="Diferencia" class="text-right number-formatted">
-                    ${displayDiff !== null ? `
-                        <span class="traffic-light ${diffClass}">
-                            <span class="traffic-light-icon"></span>
-                            ${displayDiff >= 0 ? '+' : ''}${formatCurrency(displayDiff)}
-                        </span>
-                    ` : '<span class="text-muted">—</span>'}
-                </td>
-                <td data-label="Estado">${renderStatusBadge(cut.status)}</td>
-            </tr>
-        `;
+        <tr data-id="${cut.id}">
+            <td data-label="Fecha">${formatDate(cut.created_at)}</td>
+            <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
+            <td data-label="Contado" class="text-right number-formatted">${filterLabel} ${formatCurrency(displayCounted)}</td>
+            <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(displayExpenses)}</td>
+            <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
+            <td data-label="Diferencia" class="text-right number-formatted">
+                ${displayDiff !== null ? `
+                    <span class="traffic-light ${diffClass}">
+                        <span class="traffic-light-icon"></span>
+                        ${displayDiff >= 0 ? '+' : ''}${formatCurrency(displayDiff)}
+                    </span>
+                ` : '<span class="text-muted">—</span>'}
+            </td>
+            <td data-label="Estado">${renderStatusBadge(cut.status)}</td>
+        </tr>
+    `;
     }
-
     async function loadCuts(dateFrom = null, dateTo = null) {
         loadingIndicator.classList.remove('hidden');
         emptyState.classList.add('hidden');
@@ -358,7 +371,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const cutDate = cut.valid_date;
                 const cutExpenses = expenses.filter(e => e.valid_date === cutDate && !e.is_global);
                 const expensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
-                return { ...cut, expensesTotal };
+                const expensesCash = cutExpenses.filter(e => e.payment_method === 'efectivo').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+                const expensesVoucher = cutExpenses.filter(e => e.payment_method !== 'efectivo').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
+                return { ...cut, expensesTotal, expensesCash, expensesVoucher };
             });
 
             if (cuts.length === 0) {
