@@ -1167,6 +1167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const editExpenseMethod = document.getElementById('edit-expense-method');
     const editExpenseDescription = document.getElementById('edit-expense-description');
     const editExpenseAmount = document.getElementById('edit-expense-amount');
+    const editExpenseGlobal = document.getElementById('edit-expense-global');
 
     function openEditExpenseModal(expense) {
         if (!editExpenseModalBackdrop) return;
@@ -1177,6 +1178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         editExpenseMethod.value = expense.payment_method;
         editExpenseDescription.value = expense.description;
         editExpenseAmount.value = expense.amount;
+        if (editExpenseGlobal) editExpenseGlobal.checked = expense.is_global || false;
 
         editExpenseModalBackdrop.classList.add('active');
     }
@@ -1203,6 +1205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const method = editExpenseMethod.value;
             const description = editExpenseDescription.value.trim();
             const amount = parseFloat(editExpenseAmount.value);
+            const isGlobal = editExpenseGlobal ? editExpenseGlobal.checked : false;
 
             if (!description || isNaN(amount) || amount <= 0) {
                 alert('Por favor completa todos los campos correctamente.');
@@ -1219,7 +1222,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         category: category,
                         payment_method: method,
                         description: description,
-                        amount: amount
+                        amount: amount,
+                        is_global: isGlobal
                     })
                     .eq('id', id);
 
@@ -1691,8 +1695,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalAddExpenseBtn.addEventListener('click', async () => {
             const category = document.getElementById('modal-add-category')?.value;
             const method = document.getElementById('modal-add-method')?.value || 'efectivo';
-            const description = document.getElementById('modal-add-description')?.value?.trim();
-            const amount = parseFloat(document.getElementById('modal-add-amount')?.value);
+            const description = document.getElementById('modal-add-description').value.trim();
+            const amount = parseFloat(document.getElementById('modal-add-amount').value);
+            const isGlobal = document.getElementById('modal-add-global')?.checked || false;
             const msgEl = document.getElementById('modal-add-expense-msg');
 
             if (!category || !description || isNaN(amount) || amount <= 0) {
@@ -1724,7 +1729,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         category: category,
                         payment_method: method,
                         description: description,
-                        amount: amount
+                        amount: amount,
+                        is_global: isGlobal
                     });
 
                 if (error) throw error;

@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const expenseCategorySelect = document.getElementById('expense-category');
     const expenseDescriptionInput = document.getElementById('expense-description');
     const expenseAmountInput = document.getElementById('expense-amount');
-    const generalFundCheckbox = document.getElementById('general-fund-check');
+    const expenseGlobalInput = document.getElementById('expense-global');
     const addExpenseBtn = document.getElementById('add-expense-btn');
 
     // User initials
@@ -112,15 +112,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         expensesList.innerHTML = expenses.map((exp, index) => `
             <div class="expense-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: var(--space-2);">
                 <div style="flex: 1;">
-                    <div style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-bottom: 2px;">
-                        ${categoryLabels[exp.category] || exp.category}
-                        ${exp.is_general_fund ? '<span style="font-size: 10px; background: var(--warning-bg); color: var(--warning); padding: 2px 4px; border-radius: 4px; margin-left: 6px;">Fondo General</span>' : ''}
-                    </div>
-                    <div style="color: var(--text-primary);">${escapeHtml(exp.description)}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
+                    <span style="font-weight: 500; font-size: var(--font-size-md); color: ${exp.is_global ? 'var(--text-secondary)' : 'var(--text-primary)'};">${categoryLabels[exp.category] || exp.category}</span>
+                    <span style="font-weight: 600; font-size: var(--font-size-md); color: ${exp.is_global ? 'var(--text-muted)' : 'var(--primary)'};">${formatCurrency(exp.amount)}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: var(--space-3);">
-                    <span style="font-weight: 600; color: var(--danger);">${formatCurrency(exp.amount)}</span>
-                    <button type="button" class="btn btn-ghost" onclick="removeExpense(${index})" style="padding: 4px; color: var(--text-muted);" aria-label="Eliminar gasto">
+                <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-1);">
+                    ${exp.is_global ? '<span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--primary-light); color: var(--primary);">Global</span>' : ''}
+                </div>
+                <div style="background: var(--bg-tertiary); padding: var(--space-2); border-radius: var(--radius-sm); font-size: var(--font-size-sm); color: var(--text-secondary);">
+                    ${exp.description || 'Sin descripción'}
+                </div>    <button type="button" class="btn btn-ghost" onclick="removeExpense(${index})" style="padding: 4px; color: var(--text-muted);" aria-label="Eliminar gasto">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -155,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const category = expenseCategorySelect.value;
             const description = expenseDescriptionInput.value.trim();
             const amount = parseFloat(expenseAmountInput.value);
-            const isGeneralFund = generalFundCheckbox ? generalFundCheckbox.checked : false;
+            const isGlobal = expenseGlobalInput ? expenseGlobalInput.checked : false;
 
             // Validation
             if (!category) {
@@ -181,15 +182,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 category,
                 description,
                 amount,
-                is_general_fund: isGeneralFund,
-                payment_method: 'efectivo'
+                payment_method: 'efectivo',
+                is_global: isGlobal
             });
 
             // Clear inputs
             expenseCategorySelect.value = '';
             expenseDescriptionInput.value = '';
             expenseAmountInput.value = '';
-            if (generalFundCheckbox) generalFundCheckbox.checked = false;
+            if (expenseGlobalInput) expenseGlobalInput.checked = false;
 
             // Re-render
             renderExpenses();
@@ -259,12 +260,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     user_id: currentUser.id,
                     user_name: userName,
                     category: exp.category,
-                    payment_method: exp.payment_method,
                     description: exp.description,
                     amount: exp.amount,
+                    payment_method: 'efectivo', // Receptionist always records cash expenses from drawer
+                    is_global: exp.is_global,
                     created_at: timestamp,
-                    valid_date: selectedDate,
-                    is_general_fund: exp.is_general_fund || false
+                    valid_date: selectedDate
                 }));
 
                 const { error: expenseError } = await window.supabaseClient
