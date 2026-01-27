@@ -335,6 +335,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         </tr>
     `;
     }
+    // ============ UI Helper Functions ============
+    function renderDailyTable() {
+        const cutsTableBody = document.getElementById('cuts-table-body');
+        const emptyState = document.getElementById('empty-state');
+
+        if (!cuts || cuts.length === 0) {
+            if (cutsTableBody) cutsTableBody.innerHTML = '';
+            if (emptyState) emptyState.classList.remove('hidden');
+            return;
+        }
+
+        if (emptyState) emptyState.classList.add('hidden');
+        if (cutsTableBody) {
+            cutsTableBody.innerHTML = cuts.map(renderTableRow).join('');
+        }
+    }
+
+    // ============ Data Loading Functions ============
     async function loadCuts(dateFrom = null, dateTo = null) {
         loadingIndicator.classList.remove('hidden');
         emptyState.classList.add('hidden');
@@ -363,11 +381,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (cutsResult.error) throw cutsResult.error;
             if (expensesResult.error) throw expensesResult.error;
 
-            cuts = cutsResult.data || [];
+            const fetchedCuts = cutsResult.data || [];
             const expenses = expensesResult.data || [];
 
             // Map expenses to cuts by valid_date
-            cuts = cuts.map(cut => {
+            cuts = fetchedCuts.map(cut => {
                 const cutDate = cut.valid_date;
                 const cutExpenses = expenses.filter(e => e.valid_date === cutDate && !e.is_global);
                 const expensesTotal = cutExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
@@ -377,11 +395,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return { ...cut, expensesTotal, expensesCash, expensesVoucher };
             });
 
-            if (cuts.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                cutsTableBody.innerHTML = cuts.map(renderTableRow).join('');
-            }
+            renderDailyTable();
+
         } catch (error) {
             console.error('Error loading cuts:', error);
             cutsTableBody.innerHTML = `
@@ -1451,9 +1466,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Refresh both views
-        loadCuts(dateFromInput.value || null, dateToInput.value || null);
-        loadWeeklyAudit();
+        // Instant refresh for daily view (no fetch)
+        if (view === 'daily' || !view) {
+            renderDailyTable();
+        }
+
+        // For weekly view, if we are indeed using these buttons for weekly context (unlikely now given view-mode-* buttons),
+        // we might want to refresh weekly too. But safely.
+        if (view === 'weekly') {
+            loadWeeklyAudit();
+        }
     }
 
     // Daily view filter buttons
