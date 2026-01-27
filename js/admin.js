@@ -287,10 +287,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             displayExpenses = expensesCash;
             if (expectedCash !== null) {
                 displayExpected = expectedCash;
-                // Cash Diff = (CashCounted + CashExpenses) - ExpectedCash
-                // Note: If non-cash expenses were paid, they normally don't affect Cash Drawer.
-                // Assumption: Expenses recorded as "Efectivo" come from the drawer.
-                displayDiff = (cashCounted + expensesCash) - expectedCash;
+                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash (Matching Modal Logic)
+                // Note: We use expensesTotal which includes Transfer expenses, to match the Admin Modal behavior.
+                displayDiff = (cashCounted + expensesTotal) - expectedCash;
             }
         } else if (discrepancyFilterType === 'voucher') {
             // Voucher only
@@ -307,7 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (expectedCash !== null || expectedVoucher !== null) {
                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
 
-                const cashDiff = expectedCash !== null ? (cashCounted + expensesCash) - expectedCash : 0;
+                // Diff (Matching Modal Logic)
+                const cashDiff = expectedCash !== null ? (cashCounted + expensesTotal) - expectedCash : 0;
                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                 displayDiff = cashDiff + voucherDiff;
             }
@@ -963,20 +963,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                             displayExpenses = cashExpenses + nonCashExpenses;
 
                             // Expected
+                            // Expected
                             if (expectedCash !== null || expectedVoucher !== null) {
                                 displayExpected = (expectedCash || 0) + (expectedVoucher || 0);
 
-                                // Diff
-                                const cashDiff = expectedCash !== null ? (cashCounted + cashExpenses) - expectedCash : 0;
+                                // Diff - MATCH MODAL LOGIC
+                                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash
+                                const cashDiff = expectedCash !== null ? (cashCounted + displayExpenses) - expectedCash : 0;
                                 const voucherDiff = expectedVoucher !== null ? voucherCounted - expectedVoucher : 0;
                                 displayDiff = cashDiff + voucherDiff;
                             }
                         } else if (currentViewMode === 'cash') {
                             displayCounted = cashCounted;
-                            displayExpenses = cashExpenses;
+                            displayExpenses = cashExpenses; // Wait, should this show ALL expenses if logically we are using them? 
+                            // In 'Cash' view, we usually only show Cash expenses. But the DIFF calculation now uses ALL expenses.
+                            // Let's keep displayExpenses as cashExpenses for visual consistency, but fix the DIFF.
+
                             if (expectedCash !== null) {
                                 displayExpected = expectedCash;
-                                displayDiff = (cashCounted + cashExpenses) - expectedCash;
+                                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash
+                                // We use 'expensesTotal' from the cut object which we stored earlier
+                                displayDiff = (cashCounted + cut.expensesTotal) - expectedCash;
                             }
                         } else if (currentViewMode === 'voucher') {
                             displayCounted = voucherCounted;
