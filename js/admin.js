@@ -880,57 +880,37 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const expectedCash = cut.expected_cash !== null ? parseFloat(cut.expected_cash) : null;
                 const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
-                // Difference Calculation Logic based on View Mode
+                // ============ DIFFERENCE CALCULATION FIX (SUMMARY) ============
+                // Strictly separate Cash vs Voucher expenses for reconciliation.
+                // Cash Counted + Cash Expenses (paid from drawer) = Expected Cash
+                // Voucher Counted - Expected Voucher = Voucher Diff
+
+                const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+                let cashDiff = 0;
+                let voucherDiff = 0;
+                let diff = null;
+
+                if (expectedCash !== null) {
+                    cashDiff = (cashCounted + cashExpenses) - expectedCash;
+                }
+
+                if (expectedVoucher !== null) {
+                    voucherDiff = voucherCounted - expectedVoucher;
+                }
+
+                // Aggregate for Total Difference based on Mode
                 if (currentViewMode === 'global') {
-                    // Global: (Cash + Expenses) - ExpCash  PLUS  Voucher - ExpVoucher
-                    // Or simplified: (TotalIncome + TotalExpenses) - (ExpCash + ExpVoucher) ? 
-                    // No, "Smart Cash" logic applies only to cash.
-
-                    let diff = 0;
-                    if (expectedCash !== null) diff += (cashCounted + cutExpensesTotal) - expectedCash; // Note: cutExpensesTotal here acts as Global expenses? No, expenses are cash.
-                    // WAIT: Expenses are usually Cash. But what about Transfer expenses?
-                    // If I paid via Transfer, it doesn't affect my Cash Counted.
-                    // So we should only add CASH expenses to the Cash reconciliation.
-                    // Review: "Los gastos se registran como efectivo" (Receptionist View).
-                    // Admin can add non-cash expenses.
-                    // FIX: Only add CASH expenses to the Cash Reconciliation, regardless of view mode?
-                    // The requirement is "Filtro para conocer solo efectivo".
-
-                    // Let's stick to the "Cash Difference Formula": (CashCounted + CashExpenses) - ExpectedCash.
-                    // And for Voucher: VoucherCounted - ExpectedVoucher.
-
-                    // If ViewMode is Global, we sum both differences.
-                    // But we must be careful: `cutExpensesTotal` above includes filtered expenses.
-                    // If Global, it includes ALL expenses. We shouldn't add Non-Cash expenses to the Cash equation.
-
-                    // Refined Logic for Difference Calculation:
-                    const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + e.amount, 0);
-                    // Non-cash expenses don't usually act as "Cash Refills" or "Cash Outs" in the drawer sense, 
-                    // unless they are paid FROM the drawer.
-                    // Assumption: "Gastos" in this system are paid FROM the drawer (Efectivo).
-                    // Transfer/Card expenses are likely external and don't affect the drawer count.
-                    // So they shouldn't be added to "Cash Counted" to reconcile.
-
-                    // However, we need to show them in "Gastos Totales".
-
-                    if (expectedCash !== null) {
-                        totalDifference += (cashCounted + cashExpenses) - expectedCash;
+                    if (expectedCash !== null || expectedVoucher !== null) {
+                        totalDifference += cashDiff + voucherDiff;
                     }
-                    if (expectedVoucher !== null) {
-                        totalDifference += voucherCounted - expectedVoucher;
-                    }
-
                 } else if (currentViewMode === 'cash') {
-                    // Cash View: (CashCounted + CashExpenses) - ExpectedCash
-                    // The `cutExpensesFiltered` already contains only Cash expenses.
                     if (expectedCash !== null) {
-                        totalDifference += (cashCounted + cutExpensesTotal) - expectedCash;
+                        totalDifference += cashDiff;
                     }
                 } else if (currentViewMode === 'voucher') {
-                    // Voucher View: VoucherCounted - ExpectedVoucher
-                    // Expenses (non-cash) don't affect this usually.
                     if (expectedVoucher !== null) {
-                        totalDifference += voucherCounted - expectedVoucher;
+                        totalDifference += voucherDiff;
                     }
                 }
             });
@@ -1014,18 +994,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const diffClass = displayDiff === null ? '' : displayDiff === 0 ? 'text-success' : displayDiff < 0 ? 'text-danger' : 'text-warning';
                         const statusBadge = renderStatusBadge(cut.status);
 
-                        // Icon for Expected
-                        let filterLabel = '';
-                        if (currentViewMode === 'cash') filterLabel = '💵';
-                        else if (currentViewMode === 'voucher') filterLabel = '💳';
-
                         return `
                             <tr class="clickable-row" data-cut-index="${index}" title="Clic para ver detalles">
                                 <td data-label="Fecha">${formatDateShort(cut.created_at)}</td>
                                 <td data-label="Usuario">${cut.user_name || 'Usuario'}</td>
                                 <td data-label="Contado" class="text-right number-formatted" style="font-weight: 600;">${formatCurrency(displayCounted)}</td>
                                 <td data-label="Gastos" class="text-right number-formatted">${formatCurrency(displayExpenses)}</td>
-                                <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? filterLabel + ' ' + formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
+                                <td data-label="Esperado" class="text-right number-formatted">${displayExpected !== null ? formatCurrency(displayExpected) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Diferencia" class="text-right ${diffClass} number-formatted" style="font-weight: 600;">${displayDiff !== null ? (displayDiff >= 0 ? '+' : '') + formatCurrency(displayDiff) : '<span class="text-muted">—</span>'}</td>
                                 <td data-label="Estado">${statusBadge}</td>
                             </tr>
