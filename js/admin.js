@@ -437,7 +437,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="expense-item" style="padding: var(--space-3); border-radius: var(--radius-md); background: var(--bg-secondary); margin-bottom: var(--space-2);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-sm); color: var(--text-secondary);">👤 ${exp.user_name || 'Usuario'}</span>
-                            <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
+                            <div style="display: flex; gap: var(--space-2);">
+                                <span class="expense-amount" style="font-weight: 600; color: var(--text-primary);">${formatCurrency(exp.amount)}</span>
+                                <button onclick="toggleGeneralFund('${exp.id}', ${exp.is_general_fund})" class="btn btn-ghost" style="padding: 2px; height: auto;" title="Alternar Fondo General">
+                                    ${exp.is_general_fund ? '🔄' : '📥'}
+                                </button>
+                            </div>
                         </div>
                         <div style="display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-1);">
                             <span style="font-size: var(--font-size-xs); padding: 2px 6px; border-radius: var(--radius-sm); background: var(--bg-tertiary);">${categoryLabels[exp.category] || exp.category}</span>
@@ -602,10 +607,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const totalClass = totalDiff === 0 ? 'exact' : (totalDiff > 0 ? 'over' : 'under');
             const totalLabel = totalDiff === 0 ? 'Exacto' : (totalDiff > 0 ? 'Sobrante' : 'Faltante');
             html += `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-light);">
-                    <span style="font-weight: 600;">📊 Total:</span>
-                    <span class="traffic-light ${totalClass}">
-                        <span class="traffic-light-icon"></span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--border-light);">
+                    <span style="font-weight: 600; color: var(--text-primary);">Diferencia Total:</span>
+                    <span class="traffic-light ${totalClass}" style="font-weight: 700;">
                         ${totalLabel}: ${formatCurrency(Math.abs(totalDiff))}
                     </span>
                 </div>
@@ -614,6 +618,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         differenceDisplay.innerHTML = html;
     }
+
+    // Toggle General Fund Status (New)
+    window.toggleGeneralFund = async (expenseId, currentStatus) => {
+        if (!confirm(`¿${currentStatus ? 'Quitar del' : 'Mover al'} Fondo General?`)) return;
+
+        try {
+            const { error } = await window.supabaseClient
+                .from('expenses')
+                .update({ is_general_fund: !currentStatus })
+                .eq('id', expenseId);
+
+            if (error) throw error;
+
+            // Refresh modal expenses to reflect change
+            await refreshModalExpenses();
+
+            // Refresh daily table row if visible
+            if (selectedCut) {
+                // We need to reload just this row data or the whole table? 
+                // Simple approach: re-fetch cuts to update the table view behind modal
+                // But that might be heavy. Let's just rely on refreshModalExpenses to update the modal totals.
+                // The user will see the table update when they close/refresh.
+                // Actually, we should try to update the cached 'cuts' array and re-render the row if possible, 
+                // but 'cuts' is local.
+                // Let's just re-load the cuts in background or leave it for refresh.
+                loadCuts(dateFromInput.value, dateToInput.value);
+            }
+
+        } catch (error) {
+            console.error('Error toggling general fund:', error);
+            alert('Error al actualizar el estado del gasto.');
+        }
+    };
 
     async function saveReview() {
         if (!selectedCut) return;
@@ -1333,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         deleteCutBtn.addEventListener('click', async () => {
             if (!selectedCut) return;
 
-            if (!confirm('¿Estás seguro de que quieres ELIMINAR este corte Permanentemente? Esta acción no se puede deshacer.')) {
+            if (!confirm('¿Estás seguro de que quieres ELIMINAR este corte Permanentemente? Esta acción no se puede rehacer.')) {
                 return;
             }
 
@@ -1646,8 +1683,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalAddExpenseBtn.addEventListener('click', async () => {
             const category = document.getElementById('modal-add-category')?.value;
             const method = document.getElementById('modal-add-method')?.value || 'efectivo';
-            const description = document.getElementById('modal-add-description')?.value?.trim();
-            const amount = parseFloat(document.getElementById('modal-add-amount')?.value);
+            const description = document.getElementById('modal-add-description').value.trim();
+            const amount = parseFloat(document.getElementById('modal-add-amount').value);
+            const isGeneralFund = document.getElementById('modal-add-general-fund').checked;
             const msgEl = document.getElementById('modal-add-expense-msg');
 
             if (!category || !description || isNaN(amount) || amount <= 0) {
@@ -1679,7 +1717,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         category: category,
                         payment_method: method,
                         description: description,
-                        amount: amount
+                        amount: amount,
+                        is_general_fund: isGeneralFund
                     });
 
                 if (error) throw error;
