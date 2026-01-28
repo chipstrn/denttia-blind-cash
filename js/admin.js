@@ -881,18 +881,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const expectedVoucher = cut.expected_voucher !== null ? parseFloat(cut.expected_voucher) : null;
 
                 // ============ DIFFERENCE CALCULATION FIX (SUMMARY) ============
-                // Strictly separate Cash vs Voucher expenses for reconciliation.
-                // Cash Counted + Cash Expenses (paid from drawer) = Expected Cash
-                // Voucher Counted - Expected Voucher = Voucher Diff
+                // Aligning with Table Logic: Use ALL non-global expenses for reconciliation
+                // Cash Diff = (CashCounted + ALL EXPENSES) - ExpectedCash
 
-                const cashExpenses = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+                const allExpensesForDiff = cutExpensesAll.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
                 let cashDiff = 0;
                 let voucherDiff = 0;
                 let diff = null;
 
                 if (expectedCash !== null) {
-                    cashDiff = (cashCounted + cashExpenses) - expectedCash;
+                    cashDiff = (cashCounted + allExpensesForDiff) - expectedCash;
                 }
 
                 if (expectedVoucher !== null) {
