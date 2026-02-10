@@ -772,28 +772,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 1. Get Cash Income for Period
             const { data: cuts, error: cutsError } = await window.supabaseClient
                 .from('blind_cuts')
-                .select('cash_counted')
+                .select('valid_date, cash_counted')
                 .gte('valid_date', start)
                 .lte('valid_date', end);
 
             if (cutsError) throw cutsError;
 
-            const totalIncomeCash = (cuts || []).reduce((sum, cut) => sum + parseFloat(cut.cash_counted || 0), 0);
-
-            // 2. Get Cash Expenses for Period (Efectivo OR Global)
+            // 2. Get Cash Expenses for Period (Strictly Cash, No Global)
             const { data: expenses, error: expensesError } = await window.supabaseClient
                 .from('expenses')
-                .select('amount, payment_method, is_global')
+                .select('amount, payment_method, is_global, valid_date')
                 .gte('valid_date', start)
                 .lte('valid_date', end)
-                .or('payment_method.eq.efectivo,is_global.eq.true');
+                .eq('payment_method', 'efectivo')
+                .eq('is_global', false);
 
             if (expensesError) throw expensesError;
 
-            const totalExpensesCash = (expenses || []).reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            // Calculate Gross Income: Sum(Cash Counted) + Sum(Expenses covered by cuts)
+            let totalGrossIncome = 0;
+            const cutDates = new Set((cuts || []).map(c => c.valid_date));
 
-            // Net Cash = Cash In - Cash Out
-            const totalCash = totalIncomeCash - totalExpensesCash;
+            // Sum counted cash
+            (cuts || []).forEach(cut => {
+                totalGrossIncome += parseFloat(cut.cash_counted || 0);
+            });
+
+            // Add back expenses that were on cut days (because Counted is Net)
+            const expenseList = expenses || [];
+            expenseList.forEach(exp => {
+                if (cutDates.has(exp.valid_date)) {
+                    totalGrossIncome += parseFloat(exp.amount || 0);
+                }
+            });
+
+            const totalExpensesCash = expenseList.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
+            // Net Cash Flow = Gross Income - Total Cash Expenses
+            // This effectively results in: Sum(Cash Counted) - Sum(Orphan Expenses)
+            const totalCash = totalGrossIncome - totalExpensesCash;
 
             // Format
             totalCashDisplay.textContent = formatCurrency(totalCash);
@@ -824,13 +841,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cuts = incomeData || [];
 
             // ============ 1. Calculate Totals based on View Mode ============
-            const totalIncome = cuts.reduce((sum, cut) => {
-                let val = 0;
-                if (currentViewMode === 'global') val = parseFloat(cut.total_counted || 0);
-                else if (currentViewMode === 'cash') val = parseFloat(cut.cash_counted || 0);
-                else if (currentViewMode === 'voucher') val = parseFloat(cut.voucher_counted || 0);
-                return sum + val;
-            }, 0);
+            // ============ 1. Calculate Totals based on View Mode ============
+            // Initialize totalIncome to 0, will be calculated in the loop below
+            // to properly add back expenses for Gross Income view
+            let totalIncome = 0;
 
             // First load expenses for the entire period to be efficient
             const { data: expenseData, error: expenseError } = await window.supabaseClient
@@ -903,14 +917,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (expectedCash !== null || expectedVoucher !== null) {
                         totalDifference += cashDiff + voucherDiff;
                     }
+                    // Income: Total Counted (Net Cash + Voucher) + Cash Expenses
+                    const cashExpensesForCut = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+                    totalIncome += parseFloat(cut.total_counted || 0) + cashExpensesForCut;
+
                 } else if (currentViewMode === 'cash') {
                     if (expectedCash !== null) {
                         totalDifference += cashDiff;
                     }
+                    // Income: Cash Counted (Net) + Cash Expenses
+                    const cashExpensesForCut = cutExpensesAll.filter(e => e.payment_method === 'efectivo').reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+                    totalIncome += parseFloat(cut.cash_counted || 0) + cashExpensesForCut;
+
                 } else if (currentViewMode === 'voucher') {
                     if (expectedVoucher !== null) {
                         totalDifference += voucherDiff;
                     }
+                    // Income: Voucher Counted (Already Gross)
+                    totalIncome += parseFloat(cut.voucher_counted || 0);
                 }
             });
 
