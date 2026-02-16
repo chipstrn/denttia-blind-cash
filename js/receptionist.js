@@ -237,6 +237,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Convert to ISO (UTC) for correct storage
             const timestamp = localDate.toISOString();
 
+            // 0. Check for duplicate cut on this date
+            const { data: existingCuts, error: checkError } = await window.supabaseClient
+                .from('blind_cuts')
+                .select('id')
+                .eq('valid_date', selectedDate);
+
+            if (checkError) throw checkError;
+
+            if (existingCuts && existingCuts.length > 0) {
+                alert('Ya existe un corte registrado para esta fecha. No se permiten duplicados.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Terminar Turno
+                `;
+                return;
+            }
+
+
+
             // 1. Insert blind cut record (income)
             const { error: incomeError } = await window.supabaseClient
                 .from('blind_cuts')
